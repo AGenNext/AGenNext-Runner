@@ -59,6 +59,30 @@ jobs:
           failure-threshold: error
 
   # ── Job 2: Build & Push Docker images ─────────────────────────────────────
+
+  integration-test:
+    name: Integration Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    needs: test
+    # Run on push to main only — too slow for every PR
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r tests/requirements.txt
+
+      - name: Run integration tests
+        run: pytest tests/test_containers.py -v --tb=short -m integration
+        timeout-minutes: 15
+
   build:
     name: Build & Push Images
     runs-on: ubuntu-latest
