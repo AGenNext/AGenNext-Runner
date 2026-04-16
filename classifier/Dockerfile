@@ -1,5 +1,11 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.title="autonomyx-classifier" \
+      org.opencontainers.image.description="Task classifier sidecar for Autonomyx Model Gateway — routes prompts to optimal models" \
+      org.opencontainers.image.source="https://github.com/openautonomyx/autonomyx-model-gateway" \
+      org.opencontainers.image.vendor="OPENAUTONOMYX (OPC) PRIVATE LIMITED" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 COPY classifier_server.py training_data.json ./

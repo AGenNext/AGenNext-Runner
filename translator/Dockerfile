@@ -1,8 +1,13 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.title="autonomyx-translator" \
+      org.opencontainers.image.description="22-language translation sidecar for Autonomyx Model Gateway — all Indian scheduled languages" \
+      org.opencontainers.image.source="https://github.com/openautonomyx/autonomyx-model-gateway" \
+      org.opencontainers.image.vendor="OPENAUTONOMYX (OPC) PRIVATE LIMITED" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
-# System deps + all Python packages in minimal layers
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential \
     && apt-get clean \

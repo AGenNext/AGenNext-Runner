@@ -195,3 +195,50 @@ class TestGlitchTip:
             content = f.read()
         assert "GLITCHTIP_SECRET_KEY" in content
         assert "GLITCHTIP_DB_PASSWORD" in content
+
+
+class TestOCICompliance:
+    """Verify all Dockerfiles carry OCI standard annotations."""
+
+    REQUIRED_LABELS = [
+        "org.opencontainers.image.title",
+        "org.opencontainers.image.description",
+        "org.opencontainers.image.source",
+        "org.opencontainers.image.vendor",
+        "org.opencontainers.image.licenses",
+    ]
+
+    DOCKERFILES = [
+        "playwright/Dockerfile",
+        "classifier/Dockerfile",
+        "translator/Dockerfile",
+    ]
+
+    def test_all_dockerfiles_have_oci_labels(self):
+        for dockerfile in self.DOCKERFILES:
+            path = os.path.join(ROOT, dockerfile)
+            content = open(path).read()
+            for label in self.REQUIRED_LABELS:
+                assert label in content, \
+                    f"Missing OCI label '{label}' in {dockerfile}"
+
+    def test_source_url_correct(self):
+        for dockerfile in self.DOCKERFILES:
+            path = os.path.join(ROOT, dockerfile)
+            content = open(path).read()
+            assert "openautonomyx/autonomyx-model-gateway" in content, \
+                f"Wrong or missing source URL in {dockerfile}"
+
+    def test_vendor_is_openautonomyx(self):
+        for dockerfile in self.DOCKERFILES:
+            path = os.path.join(ROOT, dockerfile)
+            content = open(path).read()
+            assert "OPENAUTONOMYX" in content, \
+                f"Missing vendor label in {dockerfile}"
+
+    def test_license_is_mit(self):
+        for dockerfile in self.DOCKERFILES:
+            path = os.path.join(ROOT, dockerfile)
+            content = open(path).read()
+            assert "MIT" in content, \
+                f"Missing or wrong license in {dockerfile}"

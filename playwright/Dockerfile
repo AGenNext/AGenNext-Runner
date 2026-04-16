@@ -1,5 +1,12 @@
 FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
 
+# OCI standard annotations
+LABEL org.opencontainers.image.title="autonomyx-playwright" \
+      org.opencontainers.image.description="Playwright web scraper sidecar for Autonomyx Model Gateway" \
+      org.opencontainers.image.source="https://github.com/openautonomyx/autonomyx-model-gateway" \
+      org.opencontainers.image.vendor="OPENAUTONOMYX (OPC) PRIVATE LIMITED" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 COPY scraper_server.py .

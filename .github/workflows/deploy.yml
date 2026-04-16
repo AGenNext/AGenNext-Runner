@@ -88,6 +88,10 @@ jobs:
           tags: |
             ${{ env.ORG }}/autonomyx-playwright:${{ steps.meta.outputs.version }}
             ${{ env.ORG }}/autonomyx-playwright:latest
+          labels: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -101,6 +105,10 @@ jobs:
           tags: |
             ${{ env.ORG }}/autonomyx-classifier:${{ steps.meta.outputs.version }}
             ${{ env.ORG }}/autonomyx-classifier:latest
+          labels: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -114,6 +122,10 @@ jobs:
           tags: |
             ${{ env.ORG }}/autonomyx-translator:${{ steps.meta.outputs.version }}
             ${{ env.ORG }}/autonomyx-translator:latest
+          labels: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
