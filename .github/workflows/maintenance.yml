@@ -1,0 +1,45 @@
+name: Weekly Maintenance
+
+on:
+  schedule:
+    - cron: "0 2 * * 0"   # Sunday 2am UTC
+  workflow_dispatch:
+
+jobs:
+  prune:
+    name: Docker prune + disk report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Prune Docker resources on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: vps.openautonomyx.com
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 120s
+          script: |
+            set -e
+            echo "=== Disk before prune ==="
+            df -h /
+            docker system df
+
+            echo "=== Pruning stopped containers (older than 24h) ==="
+            docker container prune -f --filter "until=24h"
+
+            echo "=== Pruning dangling + unused images (older than 48h) ==="
+            # Only removes images not referenced by any container
+            docker image prune -f --filter "until=48h"
+
+            echo "=== Pruning unused networks ==="
+            docker network prune -f
+
+            echo "=== Pruning build cache (older than 7 days) ==="
+            docker builder prune -f --filter "until=168h"
+
+            echo "=== Disk after prune ==="
+            df -h /
+            docker system df
+
+            echo "=== Running containers (verify all still up) ==="
+            docker compose -f /home/ubuntu/autonomyx-model-gateway/docker-compose.yml ps

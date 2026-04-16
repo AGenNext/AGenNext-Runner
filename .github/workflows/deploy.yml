@@ -254,6 +254,16 @@ jobs:
             echo "=== Starting all services ==="
             docker compose up -d --remove-orphans
 
+            echo "=== Pruning unused Docker resources ==="
+            # Remove stopped containers, dangling images, unused networks
+            # --filter until=24h: only remove resources older than 24h
+            # Never removes: running containers, named volumes, active images
+            docker container prune -f --filter "until=24h"
+            docker image prune -f --filter "until=24h"
+            docker network prune -f
+            docker builder prune -f --filter "until=168h"  # build cache older than 7d
+            echo "Disk after prune: $(df -h / | tail -1 | awk '{print $4}') free"
+
             echo "=== Waiting for gateway to be ready ==="
             for i in $(seq 1 12); do
               if curl -sf -o /dev/null \
