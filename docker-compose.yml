@@ -139,16 +139,12 @@ services:
       - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
       - GF_SECURITY_DISABLE_GRAVATAR=true
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-autonomyx}
       - LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-autonomyx}
-      - GF_USERS_ALLOW_SIGN_UP=false
-    volumes:
-      - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
     labels:
