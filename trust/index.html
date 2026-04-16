@@ -505,7 +505,7 @@
 <!-- Status bar -->
 <div class="status-bar">
   <div class="status-item"><span class="status-dot"></span>All systems operational</div>
-  <div class="status-item">Last updated: April 16, 2026</div>
+  <div class="status-item" id="last-updated">Last updated: —</div>
   <div class="status-item">Effective: April 15, 2026</div>
 </div>
 
@@ -657,7 +657,7 @@
     <!-- Sub-processors -->
     <section id="subprocessors">
       <h2 class="section-title">Sub-processors</h2>
-      <p class="section-sub">Third-party services that process personal data on our behalf. Last updated April 16, 2026.</p>
+      <p class="section-sub">Third-party services that process personal data on our behalf. Last updated <span id="sub-updated"></span>.</p>
 
       <table class="processor-table">
         <thead>
@@ -822,7 +822,45 @@
 </footer>
 
 <script>
-  // Sidebar active state on scroll
+  // ── Dynamic dates ──────────────────────────────────────────────────────────
+  const fmt = d => d.toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  // "Last updated" = date this page was last fetched from server
+  // Uses document.lastModified (set by nginx from file mtime)
+  const lastMod = document.lastModified
+    ? fmt(new Date(document.lastModified))
+    : fmt(new Date());
+
+  document.getElementById('last-updated').textContent = 'Last updated: ' + lastMod;
+
+  const subEl = document.getElementById('sub-updated');
+  if (subEl) subEl.textContent = lastMod;
+
+  // ── Live system status ─────────────────────────────────────────────────────
+  // Ping the gateway health endpoint — update status bar if degraded
+  const statusDot  = document.querySelector('.status-dot');
+  const statusText = statusDot?.parentElement;
+
+  fetch('https://llm.openautonomyx.com/health', {
+    method: 'GET',
+    signal: AbortSignal.timeout(4000),
+  })
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    // Gateway healthy — dot already green
+  })
+  .catch(() => {
+    // Gateway unreachable or degraded
+    if (statusDot)  statusDot.style.background  = '#D97706';
+    if (statusDot)  statusDot.style.animation   = 'none';
+    if (statusText) statusText.style.color       = '#92400E';
+    if (statusText) statusText.innerHTML =
+      '<span class="status-dot" style="background:#D97706"></span>Gateway status unknown — <a href="mailto:chinmay@openautonomyx.com" style="color:#92400E">contact us</a>';
+  });
+
+  // ── Sidebar active state on scroll ────────────────────────────────────────
   const sections = document.querySelectorAll('section[id], a[id]');
   const links    = document.querySelectorAll('.sidebar a');
 

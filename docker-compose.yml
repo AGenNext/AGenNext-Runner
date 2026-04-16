@@ -276,6 +276,7 @@ services:
       - coolify
     volumes:
       - ./trust:/usr/share/nginx/html:ro
+      - ./trust/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.trust.rule=Host(`trust.openautonomyx.com`)"
