@@ -69,12 +69,11 @@ exporters:
     tls:
       insecure: true
 
-  # Logs → Loki
-  loki:
-    endpoint: http://loki:3100/loki/api/v1/push
-    default_labels_enabled:
-      exporter: false
-      level: true
+  # Logs → VictoriaLogs (Apache 2.0, independent — replaces Loki/Grafana Labs)
+  otlphttp/victorialogs:
+    endpoint: http://victorialogs:9428/insert/opentelemetry
+    tls:
+      insecure: true
 
   # Debug to stdout (warn level only — no PII)
   debug:
@@ -97,7 +96,7 @@ service:
     logs:
       receivers:  [otlp]
       processors: [batch, resource]
-      exporters:  [loki]
+      exporters:  [otlphttp/victorialogs]
 
   telemetry:
     metrics:

@@ -17,11 +17,11 @@ datasources:
         - name: trace_id
           datasourceUid: jaeger
 
-  - name: Loki
-    type: loki
-    uid: loki
+  - name: VictoriaLogs
+    type: victoriametrics-logs-datasource
+    uid: victorialogs
     access: proxy
-    url: http://loki:3100
+    url: http://victorialogs:9428
     editable: false
     jsonData:
       derivedFields:
@@ -40,7 +40,7 @@ datasources:
     editable: false
     jsonData:
       tracesToLogs:
-        datasourceUid: loki
+        datasourceUid: victorialogs
         mapTagNamesEnabled: true
         mappedTags:
           - key: service.name

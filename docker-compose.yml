@@ -13,7 +13,7 @@ volumes:
   langflow-data:
   langflow-db-data:
   ollama-data:
-  loki-data:
+  victorialogs-data:
   jaeger-data:
   otel-data:
   dockge-data:
@@ -343,16 +343,18 @@ services:
     labels:
       - "traefik.enable=false"
 
-  loki:
-    image: grafana/loki:3.4.2
-    container_name: autonomyx-loki
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.50.0
+    container_name: autonomyx-victorialogs
     restart: always
     networks:
       - coolify
-    command: -config.file=/etc/loki/config.yaml
+    command:
+      - -storageDataPath=/victoria-logs-data
+      - -retentionPeriod=30d
+      - -logInternalErrors=false
     volumes:
-      - ./loki/config.yaml:/etc/loki/config.yaml:ro
-      - loki-data:/loki
+      - victorialogs-data:/victoria-logs-data
     labels:
       - "traefik.enable=false"
 
@@ -526,7 +528,7 @@ services:
       - "traefik.enable=false"
 
   glitchtip-redis:
-    image: redis:7.2-alpine
+    image: valkey/valkey:8.1-alpine
     container_name: autonomyx-glitchtip-redis
     restart: always
     networks:
