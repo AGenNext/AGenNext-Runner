@@ -157,6 +157,10 @@ services:
     restart: always
     networks:
       - coolify
+    environment:
+      - DO_NOT_TRACK=true                     # disable telemetry (flow runs, env, components)
+      - LANGFLOW_TELEMETRY_ENABLED=false       # belt + suspenders
+      - LANGFLOW_AUTO_LOGIN=false              # disable auto-login for security
     depends_on:
       langflow-db:
         condition: service_healthy
