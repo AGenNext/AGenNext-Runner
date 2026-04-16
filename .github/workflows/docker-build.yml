@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./playwright
-          dockerfile: ./playwright/Dockerfile
+          file: ./playwright/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -84,7 +84,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./classifier
-          dockerfile: ./classifier/Dockerfile
+          file: ./classifier/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -122,7 +122,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./translator
-          dockerfile: ./translator/Dockerfile
+          file: ./translator/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

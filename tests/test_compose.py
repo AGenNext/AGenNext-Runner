@@ -100,3 +100,56 @@ def test_compose_config_valid(compose_file):
             f"docker compose config --quiet failed for {compose_file}:\n"
             f"{result.stderr.strip()}"
         )
+
+
+# ── GitHub Actions workflow validation ────────────────────────────────────────
+import glob
+
+# Known invalid inputs per action (subset — the ones that have bitten us)
+INVALID_INPUTS = {
+    "docker/build-push-action": {"dockerfile"},   # correct param is 'file'
+    "docker/setup-buildx-action": {"dockerfile"},
+}
+
+# Known valid cache types
+VALID_CACHE_TYPES = {"registry", "local", "gha", "s3", "azblob", "inline"}
+
+def get_workflow_files():
+    root = Path(__file__).parent.parent
+    return list((root / ".github" / "workflows").glob("*.yml"))
+
+@pytest.mark.parametrize("workflow_file", get_workflow_files())
+def test_workflow_no_invalid_action_inputs(workflow_file):
+    """Catches invalid inputs to known GitHub Actions (e.g. dockerfile in build-push-action)."""
+    import yaml as _yaml
+    data = _yaml.safe_load(workflow_file.read_text())
+    if not data or 'jobs' not in data:
+        return
+
+    errors = []
+    for job_name, job in (data.get('jobs') or {}).items():
+        for step in (job.get('steps') or []):
+            uses = step.get('uses', '')
+            action = uses.split('@')[0] if '@' in uses else ''
+            with_inputs = set((step.get('with') or {}).keys())
+
+            for known_action, bad_inputs in INVALID_INPUTS.items():
+                if known_action in action:
+                    found_bad = with_inputs & bad_inputs
+                    if found_bad:
+                        errors.append(
+                            f"Job '{job_name}' step '{step.get('name', uses)}': "
+                            f"invalid input(s) {found_bad} for {action}"
+                        )
+
+    if errors:
+        pytest.fail("\n".join(errors))
+
+
+@pytest.mark.parametrize("workflow_file", get_workflow_files())
+def test_workflow_valid_yaml(workflow_file):
+    """Ensures every workflow file is valid YAML with no duplicate keys."""
+    try:
+        strict_load(str(workflow_file))
+    except Exception as e:
+        pytest.fail(f"Invalid YAML in {workflow_file.name}: {e}")
