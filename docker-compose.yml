@@ -37,7 +37,6 @@ services:
     - POSTGRES_USER=autonomyx
     - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}
     - POSTGRES_DB=postgres
-    - '# App passwords — used by init.sh to create per-app users'
     - LITELLM_DB_PASSWORD=${POSTGRES_PASSWORD}
     - LANGFLOW_DB_PASSWORD=${LANGFLOW_DB_PASSWORD}
     - OPENFGA_DB_PASSWORD=${OPENFGA_DB_PASSWORD}
