@@ -241,6 +241,23 @@ services:
 
 
 
+
+  # ── Trust Centre (trust.openautonomyx.com) ───────────────────────────────
+  trust:
+    image: nginx:1.27-alpine
+    container_name: autonomyx-trust
+    restart: always
+    networks:
+      - coolify
+    volumes:
+      - ./trust:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trust.rule=Host(`trust.openautonomyx.com`)"
+      - "traefik.http.routers.trust.entrypoints=https"
+      - "traefik.http.routers.trust.tls.certresolver=letsencrypt"
+      - "traefik.http.services.trust.loadbalancer.server.port=80"
+
   # ── OPA (conditional policy engine) ──────────────────────────────────────
   opa:
     image: openpolicyagent/opa:0.70.0-static
@@ -260,26 +277,9 @@ services:
     labels:
       - "traefik.enable=false"   # internal only
 
-  # ── OPA (conditional policy engine) ──────────────────────────────────────────
-  opa:
-    image: openpolicyagent/opa:0.68.0
-    container_name: autonomyx-opa
-    restart: always
-    networks:
-      - coolify
-    command:
-      - "run"
-      - "--server"
-      - "--addr=0.0.0.0:8181"
-      - "--log-format=json"
-      - "--log-level=warn"
-      - "/policies"
-    volumes:
-      - ./opa:/policies:ro
-    labels:
-      - "traefik.enable=false"   # internal only
 
-  # ── OpenFGA (relationship-based authorization) ────────────────────────────
+
+  # ── OPA (conditional policy engine) ──────────────────────────────────────────
   openfga-db:
     image: postgres:15.7-alpine
     container_name: autonomyx-openfga-db

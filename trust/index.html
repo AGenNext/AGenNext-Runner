@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trust Centre — Autonomyx</title>
+<meta name="description" content="Privacy, security, compliance and legal documentation for the Autonomyx Model Gateway platform.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:   #001141;
+    --blue:   #1B5EBE;
+    --cyan:   #00CFFF;
+    --white:  #F8FAFF;
+    --ink:    #0A0E1A;
+    --muted:  #64748B;
+    --line:   rgba(0,17,65,0.08);
+    --serif:  'DM Serif Display', Georgia, serif;
+    --mono:   'DM Mono', monospace;
+    --sans:   'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--white);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0;
+    background: rgba(248,250,255,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    color: var(--navy);
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--blue); }
+
+  .header-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--blue);
+    border: 1px solid rgba(27,94,190,0.2);
+    padding: 4px 12px;
+    text-transform: uppercase;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 80px 48px 64px;
+    border-bottom: 1px solid var(--line);
+    max-width: 860px;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--blue);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.1s forwards;
+  }
+
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(40px, 5vw, 64px);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--navy);
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.2s forwards;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--blue);
+  }
+
+  .hero p {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+    opacity: 0;
+    animation: fadeUp 0.6s 0.3s forwards;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Status bar ── */
+  .status-bar {
+    padding: 16px 48px;
+    background: #F0FDF4;
+    border-bottom: 1px solid #BBF7D0;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-size: 13px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #16A34A;
+    display: inline-block;
+    margin-right: 8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-item {
+    color: #15803D;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Main layout ── */
+  .main {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 200px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    border-right: 1px solid var(--line);
+    padding: 40px 24px;
+    position: sticky;
+    top: 61px;
+    height: calc(100vh - 61px);
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    margin-bottom: 32px;
+  }
+
+  .sidebar-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sidebar a {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 0;
+    transition: color 0.15s;
+    border-left: 2px solid transparent;
+    padding-left: 12px;
+    margin-left: -12px;
+  }
+
+  .sidebar a:hover,
+  .sidebar a.active {
+    color: var(--navy);
+    border-left-color: var(--blue);
+  }
+
+  /* ── Content ── */
+  .content {
+    padding: 48px 64px 80px;
+    max-width: 900px;
+  }
+
+  /* ── Doc cards ── */
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 64px;
+  }
+
+  .doc-card {
+    background: var(--white);
+    padding: 28px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+    display: block;
+  }
+
+  .doc-card:hover { background: #F1F5FF; }
+
+  .doc-card-type {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--blue);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .doc-card h3 {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .doc-card p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .doc-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .doc-status {
+    padding: 2px 8px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .doc-status.live {
+    background: #DCFCE7;
+    color: #15803D;
+  }
+
+  .doc-status.pending {
+    background: #FEF9C3;
+    color: #854D0E;
+  }
+
+  .doc-status.coming {
+    background: #F1F5F9;
+    color: var(--muted);
+  }
+
+  /* ── Section headings ── */
+  .section-title {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .section-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    max-width: 500px;
+  }
+
+  /* ── Sub-processors table ── */
+  .processor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 48px;
+  }
+
+  .processor-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    font-weight: 400;
+  }
+
+  .processor-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+    vertical-align: top;
+  }
+
+  .processor-table tr:hover td { background: #F8FAFF; }
+
+  .processor-table .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #EFF6FF;
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-right: 4px;
+    margin-bottom: 2px;
+  }
+
+  /* ── Compliance badges ── */
+  .compliance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 64px;
+  }
+
+  .compliance-card {
+    background: var(--white);
+    padding: 24px;
+  }
+
+  .compliance-icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .compliance-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .compliance-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .compliance-status {
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .compliance-status.implemented { color: #16A34A; }
+  .compliance-status.partial     { color: #D97706; }
+  .compliance-status.planned     { color: var(--muted); }
+
+  /* ── Security section ── */
+  .security-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+
+  .security-item {
+    background: var(--white);
+    padding: 24px;
+  }
+
+  .security-item h4 {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    font-weight: 500;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .security-item p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Contact box ── */
+  .contact-box {
+    border: 1px solid var(--line);
+    padding: 32px;
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+
+  .contact-box-icon {
+    width: 40px; height: 40px;
+    background: #EFF6FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+  }
+
+  .contact-box h4 {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .contact-box p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .contact-box a {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+    text-decoration: none;
+  }
+
+  .contact-box a:hover { text-decoration: underline; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 24px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--navy); }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    header { padding: 16px 20px; }
+    .hero { padding: 48px 20px 40px; }
+    .status-bar { padding: 12px 20px; flex-wrap: wrap; gap: 12px; }
+    .main { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .content { padding: 32px 20px; }
+    .security-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <a href="https://openautonomyx.com" class="logo">AUTONOMYX <span>/ TRUST</span></a>
+  <div class="header-badge">Trust Centre</div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-eyebrow">Privacy · Security · Compliance</div>
+  <h1>We take data<br><em>seriously.</em></h1>
+  <p>This trust centre contains all legal, privacy, and compliance documentation for the Autonomyx Model Gateway platform. OPENAUTONOMYX (OPC) PRIVATE LIMITED — CIN: U62010KA2026OPC215666.</p>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <div class="status-item"><span class="status-dot"></span>All systems operational</div>
+  <div class="status-item">Last updated: April 16, 2026</div>
+  <div class="status-item">Effective: April 15, 2026</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Legal</div>
+      <a href="#legal">Documents</a>
+      <a href="#tos">Terms of Service</a>
+      <a href="#privacy">Privacy Policy</a>
+      <a href="#dpa">Data Processing Agreement</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Compliance</div>
+      <a href="#compliance">Frameworks</a>
+      <a href="#subprocessors">Sub-processors</a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Security</div>
+      <a href="#security">Security measures</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main class="content">
+
+    <!-- Legal documents -->
+    <section id="legal">
+      <h2 class="section-title">Legal Documents</h2>
+      <p class="section-sub">All documents are effective April 15, 2026. Require legal review before relying on for regulatory purposes.</p>
+
+      <div class="doc-grid">
+        <a class="doc-card" href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/terms-of-service.md" target="_blank" id="tos">
+          <div class="doc-card-type">Legal</div>
+          <h3>Terms of Service</h3>
+          <p>14 sections covering service tiers, acceptable use, billing, liability caps, IP, and governing law.</p>
+          <div class="doc-card-meta">
+            <span class="doc-status live">Live</span>
+            <span>v1.0 · April 15, 2026</span>
+          </div>
+        </a>
+
+        <a class="doc-card" href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/privacy-policy.md" target="_blank" id="privacy">
+          <div class="doc-card-type">Privacy</div>
+          <h3>Privacy Policy</h3>
+          <p>Data collection, retention, sub-processors, rights under DPDP 2023, GDPR, and CCPA.</p>
+          <div class="doc-card-meta">
+            <span class="doc-status live">Live</span>
+            <span>v1.0 · April 15, 2026</span>
+          </div>
+        </a>
+
+        <a class="doc-card" href="mailto:chinmay@openautonomyx.com?subject=DPA Request" id="dpa">
+          <div class="doc-card-type">GDPR · Article 28</div>
+          <h3>Data Processing Agreement</h3>
+          <p>Available on request for Private Node and B2B enterprise customers. Covers Article 28 obligations and SCCs.</p>
+          <div class="doc-card-meta">
+            <span class="doc-status pending">On request</span>
+            <span>Contact to request</span>
+          </div>
+        </a>
+
+        <a class="doc-card" href="#subprocessors">
+          <div class="doc-card-type">Transparency</div>
+          <h3>Sub-processor List</h3>
+          <p>All third-party processors used to deliver the Autonomyx Model Gateway service.</p>
+          <div class="doc-card-meta">
+            <span class="doc-status live">Live</span>
+            <span>Updated April 2026</span>
+          </div>
+        </a>
+
+        <div class="doc-card" style="cursor:default">
+          <div class="doc-card-type">GDPR</div>
+          <h3>Cookie Policy</h3>
+          <p>We use only strictly necessary session cookies. No advertising or tracking cookies on any Autonomyx product.</p>
+          <div class="doc-card-meta">
+            <span class="doc-status live">Live</span>
+            <span>Strictly necessary only</span>
+          </div>
+        </div>
+
+        <div class="doc-card" style="cursor:default">
+          <div class="doc-card-type">Coming soon</div>
+          <h3>SOC 2 Type 2</h3>
+          <p>Security audit planned. Contact us for current security questionnaire (CAIQ framework).</p>
+          <div class="doc-card-meta">
+            <span class="doc-status coming">Planned</span>
+            <span>Q4 2026</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Compliance -->
+    <section id="compliance">
+      <h2 class="section-title">Compliance Frameworks</h2>
+      <p class="section-sub">Regulations and frameworks we comply with or are working toward.</p>
+
+      <div class="compliance-grid">
+        <div class="compliance-card">
+          <div class="compliance-icon">🇮🇳</div>
+          <div class="compliance-name">DPDP Act 2023</div>
+          <div class="compliance-desc">Digital Personal Data Protection Act 2023 — India. Technical enforcement via OPA policy gate: no PII routed to US cloud models.</div>
+          <div class="compliance-status implemented">✓ Implemented</div>
+        </div>
+
+        <div class="compliance-card">
+          <div class="compliance-icon">🇪🇺</div>
+          <div class="compliance-name">GDPR</div>
+          <div class="compliance-desc">General Data Protection Regulation — EU/EEA. Privacy policy, sub-processor list, data retention, breach notification, data subject rights.</div>
+          <div class="compliance-status partial">◐ Partial — DPA on request</div>
+        </div>
+
+        <div class="compliance-card">
+          <div class="compliance-icon">🇺🇸</div>
+          <div class="compliance-name">CCPA</div>
+          <div class="compliance-desc">California Consumer Privacy Act. Rights to know, delete, and opt out of sale. We do not sell personal data.</div>
+          <div class="compliance-status implemented">✓ Implemented</div>
+        </div>
+
+        <div class="compliance-card">
+          <div class="compliance-icon">🔐</div>
+          <div class="compliance-name">OCI Image Spec</div>
+          <div class="compliance-desc">All container images carry full OCI annotations: title, vendor, source, license, build timestamp, git revision.</div>
+          <div class="compliance-status implemented">✓ Implemented</div>
+        </div>
+
+        <div class="compliance-card">
+          <div class="compliance-icon">🔒</div>
+          <div class="compliance-name">SOC 2 Type 2</div>
+          <div class="compliance-desc">Security audit in planning. Contact us for current security posture documentation.</div>
+          <div class="compliance-status planned">○ Planned Q4 2026</div>
+        </div>
+
+        <div class="compliance-card">
+          <div class="compliance-icon">🌐</div>
+          <div class="compliance-name">OpenFGA / OPA</div>
+          <div class="compliance-desc">Relationship-based and attribute-based authorization. Every agent call is policy-evaluated before execution.</div>
+          <div class="compliance-status implemented">✓ Implemented</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sub-processors -->
+    <section id="subprocessors">
+      <h2 class="section-title">Sub-processors</h2>
+      <p class="section-sub">Third-party services that process personal data on our behalf. Last updated April 16, 2026.</p>
+
+      <table class="processor-table">
+        <thead>
+          <tr>
+            <th>Sub-processor</th>
+            <th>Purpose</th>
+            <th>Data shared</th>
+            <th>Location</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Razorpay</strong></td>
+            <td>Payment processing (INR)</td>
+            <td>Name, email, billing address, transaction data</td>
+            <td><span class="tag">India</span></td>
+          </tr>
+          <tr>
+            <td><strong>Stripe</strong></td>
+            <td>Payment processing (international)</td>
+            <td>Name, email, billing address, transaction data</td>
+            <td><span class="tag">USA</span></td>
+          </tr>
+          <tr>
+            <td><strong>PayPal</strong></td>
+            <td>Payment processing</td>
+            <td>Name, email, transaction data</td>
+            <td><span class="tag">USA</span></td>
+          </tr>
+          <tr>
+            <td><strong>Groq</strong></td>
+            <td>Cloud LLM inference (fallback)</td>
+            <td>API prompts and inputs (no PII per DPDP gate)</td>
+            <td><span class="tag">USA</span></td>
+          </tr>
+          <tr>
+            <td><strong>OpenAI</strong></td>
+            <td>Cloud LLM inference (fallback)</td>
+            <td>API prompts and inputs (no PII per DPDP gate)</td>
+            <td><span class="tag">USA</span></td>
+          </tr>
+          <tr>
+            <td><strong>Anthropic</strong></td>
+            <td>Cloud LLM inference (fallback)</td>
+            <td>API prompts and inputs (no PII per DPDP gate)</td>
+            <td><span class="tag">USA</span></td>
+          </tr>
+          <tr>
+            <td><strong>Google Vertex AI</strong></td>
+            <td>Cloud LLM inference (fallback)</td>
+            <td>API prompts and inputs (no PII per DPDP gate)</td>
+            <td><span class="tag">USA</span> us-central1</td>
+          </tr>
+          <tr>
+            <td><strong>Lago</strong></td>
+            <td>Usage metering and billing</td>
+            <td>Usage records, customer ID</td>
+            <td><span class="tag">Self-hosted</span> EU VPS</td>
+          </tr>
+          <tr>
+            <td><strong>Langfuse</strong></td>
+            <td>LLM trace storage and observability</td>
+            <td>Prompts and outputs (per-tenant isolated)</td>
+            <td><span class="tag">Self-hosted</span> EU VPS</td>
+          </tr>
+          <tr>
+            <td><strong>SurrealDB Cloud</strong></td>
+            <td>Vector storage for RAG</td>
+            <td>Scraped content and embeddings</td>
+            <td><span class="tag">AWS</span> ap-south-1</td>
+          </tr>
+          <tr>
+            <td><strong>GlitchTip</strong></td>
+            <td>Error tracking</td>
+            <td>Error messages, stack traces (no user PII)</td>
+            <td><span class="tag">Self-hosted</span> EU VPS</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p style="font-size:13px;color:var(--muted)">
+        <strong>DPDP gate:</strong> An OPA policy rule blocks routing of requests containing personal data (PII) to all US-based cloud providers. Local Ollama models process all PII-containing requests exclusively.
+        Private Node customers can self-host entirely — no data leaves their VPS.
+      </p>
+    </section>
+
+    <!-- Security -->
+    <section id="security" style="margin-top:64px">
+      <h2 class="section-title">Security Measures</h2>
+      <p class="section-sub">Technical and organisational controls in place as of April 2026.</p>
+
+      <div class="security-grid">
+        <div class="security-item">
+          <h4>Encryption in Transit</h4>
+          <p>TLS 1.2+ enforced on all endpoints via Nginx and Traefik. HTTP redirects to HTTPS automatically. Certificates auto-renewed via Let's Encrypt.</p>
+        </div>
+        <div class="security-item">
+          <h4>Access Control</h4>
+          <p>Per-tenant Virtual Key isolation in LiteLLM. Per-agent scoped keys via OpenFGA relationship model. No cross-tenant data access possible.</p>
+        </div>
+        <div class="security-item">
+          <h4>Authorization</h4>
+          <p>OpenFGA for relationship-based access (who owns what). OPA for conditional policy evaluation (budget, DPDP, expiry, rate limits) on every request.</p>
+        </div>
+        <div class="security-item">
+          <h4>Error Tracking</h4>
+          <p>GlitchTip self-hosted for error monitoring. Stack traces captured per agent. No user PII in error payloads. Registration disabled — invite only.</p>
+        </div>
+        <div class="security-item">
+          <h4>Non-Root Containers</h4>
+          <p>All sidecar images (playwright, classifier, translator) run as non-root users. OCI image annotations on all custom builds.</p>
+        </div>
+        <div class="security-item">
+          <h4>Secrets Management</h4>
+          <p>No secrets committed to git. All credentials in server .env. Rotation policy: immediately on exposure. Agent keys shown once at creation only.</p>
+        </div>
+        <div class="security-item">
+          <h4>Audit Logging</h4>
+          <p>Every LLM call traced in Langfuse with agent_id, tenant_id, model, token counts. OpenFGA logs all authorization decisions. GlitchTip captures policy denials.</p>
+        </div>
+        <div class="security-item">
+          <h4>Private Node Option</h4>
+          <p>Dedicated VPS deployment. Customer is Data Fiduciary. All data stays within customer infrastructure. DPA available on request.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact -->
+    <section id="contact">
+      <div class="contact-box">
+        <div class="contact-box-icon">✉</div>
+        <div>
+          <h4>Data Protection & Grievance Officer</h4>
+          <p>For DPDP, GDPR, or CCPA requests — access, correction, erasure, DPA requests, or security concerns. Response within 30 days.</p>
+          <a href="mailto:chinmay@openautonomyx.com">chinmay@openautonomyx.com</a>
+          &nbsp;·&nbsp;
+          <a href="https://cal.com/thefractionalpm" target="_blank">Book a call</a>
+        </div>
+      </div>
+
+      <div class="contact-box">
+        <div class="contact-box-icon">🔐</div>
+        <div>
+          <h4>Security Disclosures</h4>
+          <p>Found a vulnerability? Please disclose responsibly. We aim to acknowledge within 48 hours and resolve critical issues within 7 days.</p>
+          <a href="mailto:chinmay@openautonomyx.com?subject=Security Disclosure">chinmay@openautonomyx.com</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Footer -->
+<footer>
+  <span>© 2026 OPENAUTONOMYX (OPC) PRIVATE LIMITED · CIN: U62010KA2026OPC215666 · Bengaluru, Karnataka, India</span>
+  <div style="display:flex;gap:20px">
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/terms-of-service.md">Terms</a>
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/privacy-policy.md">Privacy</a>
+    <a href="https://openautonomyx.com">openautonomyx.com</a>
+  </div>
+</footer>
+
+<script>
+  // Sidebar active state on scroll
+  const sections = document.querySelectorAll('section[id], a[id]');
+  const links    = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
