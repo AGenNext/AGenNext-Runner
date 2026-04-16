@@ -9,6 +9,7 @@ Run as a sidecar container alongside Keycloak.
 """
 
 import os, time, json, secrets, httpx, logging
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("kc-lago-sync")
