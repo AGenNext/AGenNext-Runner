@@ -142,3 +142,30 @@ docker compose up -d --force-recreate
 - GitHub Issues: github.com/openautonomyx/autonomyx-model-gateway/issues
 - Email: chinmay@openautonomyx.com
 - Book a call: cal.com/thefractionalpm
+
+## Vertex AI
+
+**`google.auth.exceptions.DefaultCredentialsError`**
+Service account JSON not mounted or path wrong. Check:
+```bash
+docker exec autonomyx-litellm ls /app/vertex_key.json
+docker exec autonomyx-litellm env | grep GOOGLE_APPLICATION_CREDENTIALS
+```
+
+**`Permission denied` on Vertex API calls**
+Service account missing `Vertex AI User` role. Fix in GCP Console:
+IAM → Service Accounts → your-account → Grant Access → `roles/aiplatform.user`
+
+**Claude on Vertex returns 404**
+Claude models must be explicitly enabled in Model Garden before use:
+1. console.cloud.google.com → Vertex AI → Model Garden
+2. Search "Claude" → Enable each model you want
+
+**Llama on Vertex returns 403**
+Llama MaaS models require separate enablement in Model Garden AND are
+region-locked to `us-east5`. Ensure `VERTEX_LOCATION=us-east5` for Llama calls.
+
+**Gemini model not available in region**
+Use `us-central1` for widest Gemini model availability.
+`asia-south1` (Mumbai) has limited model support.
+

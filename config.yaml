@@ -144,6 +144,77 @@ model_list:
       description: "Auto-selects best available model. Use as last-resort fallback."
       mode: chat
 
+
+  # ── Google Vertex AI ──────────────────────────────────────────────────────
+  # Auth: service account JSON mounted at /app/vertex_key.json
+  # Project: thefractionalpm
+  # Gemini models: us-central1 (widest availability)
+  # Claude on Vertex: global endpoint
+  # Llama on Vertex: us-east5 (region-restricted by Google)
+
+  # Gemini on Vertex — latest generation
+  - model_name: vertex/gemini-2.5-pro
+    litellm_params:
+      model: vertex_ai/gemini-2.5-pro-preview-03-25
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Gemini 2.5 Pro — best reasoning, 1M context. ~$1.25/1M input tokens."
+      mode: chat
+
+  - model_name: vertex/gemini-2.5-flash
+    litellm_params:
+      model: vertex_ai/gemini-2.5-flash-preview-04-17
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Gemini 2.5 Flash — fast + cheap. ~$0.15/1M input tokens."
+      mode: chat
+
+  - model_name: vertex/gemini-2.0-flash
+    litellm_params:
+      model: vertex_ai/gemini-2.0-flash-001
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Gemini 2.0 Flash — production stable. ~$0.10/1M input tokens."
+      mode: chat
+
+  # Claude on Vertex — global endpoint, no region lock
+  - model_name: vertex/claude-3-5-sonnet
+    litellm_params:
+      model: vertex_ai/claude-3-5-sonnet-v2@20241022
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: global
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Claude 3.5 Sonnet via Vertex (global endpoint). Billed via GCP."
+      mode: chat
+
+  - model_name: vertex/claude-3-haiku
+    litellm_params:
+      model: vertex_ai/claude-3-5-haiku@20241022
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: global
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Claude 3.5 Haiku via Vertex (global endpoint). Fast + cheap."
+      mode: chat
+
+  # Llama on Vertex — MaaS, region-restricted to us-east5
+  - model_name: vertex/llama4-scout
+    litellm_params:
+      model: vertex_ai/meta/llama4-scout-instruct-maas
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: us-east5
+      vertex_credentials: os.environ/GOOGLE_APPLICATION_CREDENTIALS
+    model_info:
+      description: "Llama 4 Scout via Vertex MaaS (us-east5). 10M context."
+      mode: chat
+
 # ── Router settings ───────────────────────────────────────────────────────────
 
 router_settings:
@@ -158,12 +229,15 @@ router_settings:
   fallbacks:
     - ollama/qwen3:30b-a3b:
         - groq/llama3-70b
+        - vertex/claude-3-5-sonnet
+        - vertex/gemini-2.5-flash
         - claude-3-5-sonnet
         - gpt-4o
     - ollama/qwen2.5-coder:32b:
         - groq/llama3-70b
+        - vertex/gemini-2.5-pro
         - gpt-4o
-        - claude-3-5-sonnet
+        - vertex/claude-3-5-sonnet
     - ollama/qwen2.5:14b:
         - groq/llama3-8b
         - gpt-4o-mini
@@ -172,6 +246,7 @@ router_settings:
         - groq/llama3-8b
         - gpt-4o-mini
     - ollama/llama3.2-vision:11b:
+        - vertex/gemini-2.5-pro
         - gpt-4o
         - gemini-1.5-pro
     - ollama/gemma3:9b:
