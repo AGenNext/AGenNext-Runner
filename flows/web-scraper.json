@@ -1,0 +1,231 @@
+{
+  "name": "Autonomyx Web Scraper + RAG Indexer",
+  "description": "Accept any URL. Crawl single page or entire site (configurable depth). Extract structured data from each page using Qwen3-30B. Generate embeddings via nomic-embed-text. Store chunks + vectors in SurrealDB Cloud for future RAG. Returns collection name for downstream RAG queries.",
+  "data": {
+    "nodes": [
+      {
+        "id": "TextInput-url",
+        "type": "genericNode",
+        "data": {
+          "type": "TextInput",
+          "node": {
+            "template": {
+              "url": {
+                "type": "str",
+                "required": true,
+                "display_name": "URL",
+                "placeholder": "https://example.com",
+                "show": true
+              },
+              "depth": {
+                "type": "str",
+                "required": false,
+                "display_name": "Depth",
+                "value": "0",
+                "placeholder": "0=single page, -1=full site, 1=one level deep",
+                "show": true
+              },
+              "max_pages": {
+                "type": "str",
+                "required": false,
+                "display_name": "Max Pages",
+                "value": "20",
+                "show": true
+              },
+              "collection_name": {
+                "type": "str",
+                "required": false,
+                "display_name": "Collection Name",
+                "placeholder": "auto-generated from domain if empty",
+                "value": "",
+                "show": true
+              },
+              "tenant_id": {
+                "type": "str",
+                "required": false,
+                "display_name": "Tenant ID",
+                "placeholder": "for multi-tenant isolation",
+                "value": "default",
+                "show": true
+              },
+              "extract_schema": {
+                "type": "str",
+                "required": false,
+                "display_name": "Custom Extract Schema (JSON)",
+                "placeholder": "Leave empty for default schema (title, summary, topics, entities)",
+                "value": "",
+                "show": true
+              }
+            },
+            "display_name": "Scrape Config",
+            "description": "URL and crawl configuration"
+          }
+        },
+        "position": { "x": 80, "y": 300 }
+      },
+
+      {
+        "id": "PythonFunction-scrape",
+        "type": "genericNode",
+        "data": {
+          "type": "PythonFunction",
+          "node": {
+            "template": {
+              "code": {
+                "type": "code",
+                "display_name": "Scraper Code",
+                "show": true,
+                "value": "from langflow.custom import Component\nfrom langflow.io import MessageTextInput, Output\nfrom langflow.schema.message import Message\nimport httpx, json, time\n\nclass PlaywrightScraper(Component):\n    display_name = 'Playwright Scraper'\n    description  = 'Calls Playwright sidecar to crawl URL and index into SurrealDB'\n\n    inputs = [\n        MessageTextInput(name='url',             display_name='URL'),\n        MessageTextInput(name='depth',           display_name='Depth',          value='0'),\n        MessageTextInput(name='max_pages',       display_name='Max Pages',      value='20'),\n        MessageTextInput(name='collection_name', display_name='Collection',     value=''),\n        MessageTextInput(name='tenant_id',       display_name='Tenant ID',      value='default'),\n        MessageTextInput(name='extract_schema',  display_name='Schema (JSON)',  value=''),\n    ]\n    outputs = [Output(name='result', display_name='Scrape Result', method='scrape')]\n\n    PLAYWRIGHT_URL = 'http://playwright:8400'\n    POLL_INTERVAL  = 5    # seconds between status polls\n    MAX_WAIT       = 600  # 10 min timeout\n\n    def scrape(self) -> Message:\n        url     = self.url.text if hasattr(self.url, 'text') else str(self.url)\n        depth   = int(self.depth.text if hasattr(self.depth, 'text') else self.depth)\n        pages   = int(self.max_pages.text if hasattr(self.max_pages, 'text') else self.max_pages)\n        coll    = self.collection_name.text if hasattr(self.collection_name, 'text') else str(self.collection_name)\n        tenant  = self.tenant_id.text if hasattr(self.tenant_id, 'text') else str(self.tenant_id)\n        schema_raw = self.extract_schema.text if hasattr(self.extract_schema, 'text') else str(self.extract_schema)\n\n        payload = {\n            'url':             url,\n            'depth':           depth,\n            'max_pages':       pages,\n            'collection_name': coll or None,\n            'tenant_id':       tenant,\n            'extract_schema':  json.loads(schema_raw) if schema_raw.strip() else None,\n        }\n\n        # Start job\n        r = httpx.post(f'{self.PLAYWRIGHT_URL}/scrape', json=payload, timeout=30)\n        r.raise_for_status()\n        job = r.json()\n        job_id = job['job_id']\n\n        # Poll until done\n        waited = 0\n        while waited < self.MAX_WAIT:\n            time.sleep(self.POLL_INTERVAL)\n            waited += self.POLL_INTERVAL\n            status_r = httpx.get(f'{self.PLAYWRIGHT_URL}/job/{job_id}', timeout=10)\n            status   = status_r.json()\n            if status['status'] in ('done', 'failed'):\n                break\n\n        return Message(text=json.dumps(status, indent=2))\n"
+              },
+              "url": {"type": "str", "required": true, "display_name": "URL", "show": true},
+              "depth": {"type": "str", "value": "0", "display_name": "Depth", "show": true},
+              "max_pages": {"type": "str", "value": "20", "display_name": "Max Pages", "show": true},
+              "collection_name": {"type": "str", "value": "", "display_name": "Collection", "show": true},
+              "tenant_id": {"type": "str", "value": "default", "display_name": "Tenant ID", "show": true},
+              "extract_schema": {"type": "str", "value": "", "display_name": "Schema", "show": true}
+            },
+            "display_name": "Playwright Scraper Component",
+            "description": "Calls Playwright sidecar. Polls until job complete. Returns JSON with collection name and stats."
+          }
+        },
+        "position": { "x": 480, "y": 300 }
+      },
+
+      {
+        "id": "TextOutput-result",
+        "type": "genericNode",
+        "data": {
+          "type": "TextOutput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "required": true,
+                "display_name": "Scrape Result",
+                "show": true
+              }
+            },
+            "display_name": "Result",
+            "description": "JSON: job_id, status, pages_scraped, chunks_embedded, collection, rag_query_example"
+          }
+        },
+        "position": { "x": 880, "y": 300 }
+      }
+    ],
+
+    "edges": [
+      {
+        "id": "edge-url-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "url",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "url"
+      },
+      {
+        "id": "edge-depth-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "depth",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "depth"
+      },
+      {
+        "id": "edge-pages-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "max_pages",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "max_pages"
+      },
+      {
+        "id": "edge-coll-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "collection_name",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "collection_name"
+      },
+      {
+        "id": "edge-tenant-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "tenant_id",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "tenant_id"
+      },
+      {
+        "id": "edge-schema-to-scraper",
+        "source": "TextInput-url",
+        "sourceHandle": "extract_schema",
+        "target": "PythonFunction-scrape",
+        "targetHandle": "extract_schema"
+      },
+      {
+        "id": "edge-scraper-to-output",
+        "source": "PythonFunction-scrape",
+        "sourceHandle": "result",
+        "target": "TextOutput-result",
+        "targetHandle": "input_value"
+      }
+    ],
+
+    "viewport": { "zoom": 0.8, "x": 0, "y": 0 }
+  },
+
+  "is_component": false,
+  "last_tested_version": "1.0",
+  "variables": [
+    {
+      "name": "PLAYWRIGHT_URL",
+      "type": "str",
+      "value": "http://playwright:8400",
+      "description": "Internal URL of the Playwright sidecar service"
+    }
+  ],
+
+  "pipeline": {
+    "step_1_crawl": "Playwright (Chromium headless) crawls URL. Blocks images/fonts/media. Respects robots.txt.",
+    "step_2_chunk": "Text split into 512-char chunks with sentence-boundary awareness.",
+    "step_3_extract": "Qwen3-30B extracts structured JSON per page (title, summary, topics, entities, sentiment).",
+    "step_4_embed": "nomic-embed-text (Ollama, 768-dim) generates embeddings per chunk.",
+    "step_5_store": "Chunks + embeddings stored in SurrealDB Cloud with MTREE vector index.",
+    "rag_query": "SELECT * FROM {collection} WHERE embedding <|5,40|> $query_embedding"
+  },
+
+  "important_notes": [
+    "Playwright sidecar requires shm_size: 256m in docker-compose — Chrome crashes without it",
+    "depth=0: single page only. depth=-1: full site (respect max_pages). depth=N: N levels.",
+    "Job is async — flow polls until complete (max 10 min). Large sites may timeout.",
+    "Embeddings stored in SurrealDB Cloud (AWS ap-south-1) — do not use for sensitive content",
+    "For private/sensitive content: use private node deployment with self-hosted SurrealDB",
+    "nomic-embed-text must be pulled: docker exec autonomyx-ollama ollama pull nomic-embed-text",
+    "Collection name auto-generated from domain if not specified. Same domain = same collection (upsert-safe)."
+  ],
+
+  "api_example": {
+    "single_page": {
+      "description": "Scrape single page",
+      "curl": "curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} -H 'Authorization: Bearer lf-your-key' -d '{\"url\": \"https://docs.langfuse.com\", \"depth\": \"0\"}'"
+    },
+    "full_site": {
+      "description": "Crawl full site (max 20 pages)",
+      "curl": "curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} -H 'Authorization: Bearer lf-your-key' -d '{\"url\": \"https://docs.langfuse.com\", \"depth\": \"-1\", \"max_pages\": \"20\"}'"
+    },
+    "custom_schema": {
+      "description": "Custom extraction schema",
+      "curl": "curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} -H 'Authorization: Bearer lf-your-key' -d '{\"url\": \"https://shop.example.com\", \"depth\": \"-1\", \"extract_schema\": \"{\\\"product_name\\\": \\\"\\\", \\\"price\\\": \\\"\\\", \\\"in_stock\\\": false}\"}'"
+    },
+    "response_shape": {
+      "job_id": "uuid",
+      "status": "done",
+      "url": "https://docs.langfuse.com",
+      "pages_found": 12,
+      "pages_scraped": 12,
+      "chunks_embedded": 847,
+      "collection": "scrape_docs_langfuse_com",
+      "errors": [],
+      "result_summary": {
+        "collection": "scrape_docs_langfuse_com",
+        "pages_scraped": 12,
+        "chunks_embedded": 847,
+        "rag_query_example": "SELECT * FROM scrape_docs_langfuse_com WHERE embedding <|5,40|> $query_embedding"
+      }
+    }
+  }
+}

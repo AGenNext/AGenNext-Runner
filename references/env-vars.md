@@ -221,3 +221,17 @@ CHUNK_SIZE=512
 CHUNK_OVERLAP=64
 MAX_PAGES=200
 ```
+
+## Playwright Scraper
+```
+# SurrealDB Cloud (already in your stack)
+SURREAL_URL=https://schemadb-06ehsj292ppah8kbsk9pmnjjbc.aws-aps1.surreal.cloud
+SURREAL_USER=root
+SURREAL_PASS=YOUR_SURREAL_PASS
+SURREAL_NS=autonomyx
+SURREAL_DB=scrapes
+
+# Playwright tuning
+PLAYWRIGHT_MAX_PAGES=50          # max pages per crawl job
+PLAYWRIGHT_EXTRACT_MODEL=ollama/qwen3:30b-a3b   # model for structured extraction
+```

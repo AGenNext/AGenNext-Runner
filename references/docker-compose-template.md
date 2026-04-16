@@ -197,6 +197,38 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Playwright Scraper ────────────────────────────────────────────────────
+  playwright:
+    build:
+      context: ./playwright
+      dockerfile: Dockerfile
+    container_name: autonomyx-playwright
+    restart: always
+    networks:
+      - coolify
+    environment:
+      - LITELLM_URL=http://litellm:4000
+      - LITELLM_KEY=${LITELLM_MASTER_KEY}
+      - OLLAMA_URL=http://ollama:11434
+      - EMBED_MODEL=nomic-embed-text
+      - EXTRACT_MODEL=ollama/qwen3:30b-a3b
+      - SURREAL_URL=${SURREAL_URL}
+      - SURREAL_USER=${SURREAL_USER}
+      - SURREAL_PASS=${SURREAL_PASS}
+      - SURREAL_NS=${SURREAL_NS:-autonomyx}
+      - SURREAL_DB=${SURREAL_DB:-scrapes}
+      - MAX_PAGES=50
+      - CHUNK_SIZE=512
+    # CRITICAL: Chrome needs 256MB of /dev/shm — Docker defaults to 64MB
+    shm_size: '256m'
+    deploy:
+      resources:
+        limits:
+          memory: 2g    # Chrome is memory-hungry
+          cpus: '1.0'
+    labels:
+      - "traefik.enable=false"   # internal only
 ```
 
 ---
@@ -390,4 +422,33 @@ services:
     shm_size: '256m'
     mem_limit: 2g
     memswap_limit: 2g
+
+  # ── Playwright Scraper ────────────────────────────────────────────────────
+  playwright:
+    build:
+      context: ./playwright
+      dockerfile: Dockerfile
+    container_name: autonomyx-playwright
+    restart: always
+    ports:
+      - "8400:8400"
+    environment:
+      - LITELLM_URL=http://litellm:4000
+      - LITELLM_KEY=${LITELLM_MASTER_KEY}
+      - OLLAMA_URL=http://ollama:11434
+      - EMBED_MODEL=nomic-embed-text
+      - EXTRACT_MODEL=ollama/qwen3:30b-a3b
+      - SURREAL_URL=${SURREAL_URL}
+      - SURREAL_USER=${SURREAL_USER}
+      - SURREAL_PASS=${SURREAL_PASS}
+      - SURREAL_NS=${SURREAL_NS:-autonomyx}
+      - SURREAL_DB=${SURREAL_DB:-scrapes}
+      - MAX_PAGES=50
+      - CHUNK_SIZE=512
+    shm_size: '256m'
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '1.0'
 ```

@@ -187,3 +187,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # ── Playwright Scraper ────────────────────────────────────────────────────
+  playwright:
+    build:
+      context: ./playwright
+      dockerfile: Dockerfile
+    container_name: private-playwright
+    restart: always
+    networks:
+      - private
+    ports:
+      - "8400:8400"
+    environment:
+      - LITELLM_URL=http://litellm:4000
+      - LITELLM_KEY=${LITELLM_MASTER_KEY}
+      - OLLAMA_URL=http://ollama:11434
+      - EMBED_MODEL=nomic-embed-text
+      - EXTRACT_MODEL=${PLAYWRIGHT_EXTRACT_MODEL:-ollama/qwen2.5:14b}
+      - SURREAL_URL=${SURREAL_URL}
+      - SURREAL_USER=${SURREAL_USER}
+      - SURREAL_PASS=${SURREAL_PASS}
+      - SURREAL_NS=${SURREAL_NS:-autonomyx}
+      - SURREAL_DB=${SURREAL_DB:-scrapes}
+      - MAX_PAGES=${PLAYWRIGHT_MAX_PAGES:-20}
+      - CHUNK_SIZE=512
+    shm_size: '256m'
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '1.0'
