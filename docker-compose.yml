@@ -13,6 +13,7 @@ volumes:
   langflow-data:
   langflow-db-data:
   ollama-data:
+  openfga-db-data:
   glitchtip-db-data:
   glitchtip-uploads:
 
@@ -237,6 +238,49 @@ services:
           cpus: '1.0'
     labels:
       - "traefik.enable=false"
+
+
+  # ── OpenFGA (relationship-based authorization) ────────────────────────────
+  openfga-db:
+    image: postgres:15.7-alpine
+    container_name: autonomyx-openfga-db
+    restart: always
+    networks:
+      - coolify
+    environment:
+      - POSTGRES_USER=openfga
+      - POSTGRES_PASSWORD=${OPENFGA_DB_PASSWORD}
+      - POSTGRES_DB=openfga
+    volumes:
+      - openfga-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openfga"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=false"
+
+  openfga:
+    image: openfga/openfga:v1.8.0
+    container_name: autonomyx-openfga
+    restart: always
+    networks:
+      - coolify
+    depends_on:
+      openfga-db:
+        condition: service_healthy
+    command: run --datastore-engine=postgres --datastore-uri=postgres://openfga:${OPENFGA_DB_PASSWORD}@openfga-db:5432/openfga?sslmode=disable
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=postgres
+      - OPENFGA_DATASTORE_URI=postgres://openfga:${OPENFGA_DB_PASSWORD}@openfga-db:5432/openfga?sslmode=disable
+      - OPENFGA_AUTHN_METHOD=preshared
+      - OPENFGA_AUTHN_PRESHARED_KEYS=${OPENFGA_PRESHARED_KEY}
+      - OPENFGA_LOG_FORMAT=json
+      - OPENFGA_LOG_LEVEL=warn
+      - OPENFGA_PLAYGROUND_ENABLED=false
+    labels:
+      - "traefik.enable=false"   # internal only — accessed by LiteLLM sidecar
 
   # ── GlitchTip (error tracking) ────────────────────────────────────────────
   glitchtip:
