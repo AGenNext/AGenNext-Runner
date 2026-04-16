@@ -170,3 +170,4 @@ echo "════════════════════════�
 generate_if_missing "INFISICAL_ENCRYPTION_KEY" "$(openssl rand -hex 16)"
 generate_if_missing "INFISICAL_AUTH_SECRET"    "$(openssl rand -base64 32)"
 generate_if_missing "INFISICAL_DB_PASSWORD"    "$(openssl rand -hex 32)"
+generate_if_missing "PGADMIN_PASSWORD" "$(openssl rand -hex 16)"

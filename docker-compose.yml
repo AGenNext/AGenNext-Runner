@@ -20,6 +20,7 @@ volumes:
   glitchtip-uploads:
   caddy-data:
   caddy-config:
+  pgadmin-data:
 
 services:
 
@@ -539,5 +540,24 @@ services:
     restart: always
     networks:
     - coolify
+    labels:
+    - traefik.enable=false
+  pgadmin:
+    image: dpage/pgadmin4:8.6
+    container_name: autonomyx-pgadmin
+    restart: always
+    networks:
+    - coolify
+    environment:
+    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@openautonomyx.com}
+    - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+    - PGADMIN_CONFIG_SERVER_MODE=True
+    - PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION=True
+    volumes:
+    - pgadmin-data:/var/lib/pgadmin
+    - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     labels:
     - traefik.enable=false

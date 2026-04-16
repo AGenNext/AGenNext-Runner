@@ -53,3 +53,10 @@ type       = "http"
 localIP    = "trust"
 localPort  = 80
 subdomain  = "trust"
+
+[[proxies]]
+name       = "pgadmin"
+type       = "http"
+localIP    = "pgadmin"
+localPort  = 80
+subdomain  = "db"
