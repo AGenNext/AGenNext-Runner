@@ -284,7 +284,7 @@ general_settings:
   additional_routers:
     - recommender.router    # POST /recommend
     - feedback.router       # POST /feedback
-    - translate.router      # POST /translate (proxies translator sidecar)
+    # translate.router removed — no translate.py module; use translator sidecar directly at :8000
     - openfga_authz.router  # POST /authz/grant|revoke|check, GET /authz/agent/*/models
     - opa_middleware.router  # POST /policy/evaluate, GET /policy/health
     - agent_identity.router  # POST /agents/create, GET /agents, PATCH /agents/*/suspend, etc.
