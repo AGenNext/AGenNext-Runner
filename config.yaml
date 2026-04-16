@@ -273,8 +273,19 @@ general_settings:
   store_model_in_db: true
   ui_username: os.environ/LITELLM_UI_USERNAME
   ui_password: os.environ/LITELLM_UI_PASSWORD
+  # Authorization — OpenFGA (WHO) + OPA (CONDITIONS)
+  # OpenFGA runs first: checks agent→model relationship and tenant ownership
+  # OPA runs second: checks budget, DPDP, local-first, expiry, TPM
+  custom_auth: openfga_authz.custom_auth
+  callbacks:
+    - opa_middleware.OPACallback
+
   # Custom routers mounted on the same FastAPI process
   additional_routers:
     - recommender.router    # POST /recommend
     - feedback.router       # POST /feedback
     - translate.router      # POST /translate (proxies translator sidecar)
+    - openfga_authz.router  # POST /authz/grant|revoke|check, GET /authz/agent/*/models
+    - opa_middleware.router  # POST /policy/evaluate, GET /policy/health
+    - agent_identity.router  # POST /agents/create, GET /agents, PATCH /agents/*/suspend, etc.
+    - agent_discovery.router # GET /.well-known/agent-configuration
