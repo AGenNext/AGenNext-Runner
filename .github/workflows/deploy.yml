@@ -137,6 +137,23 @@ jobs:
 
             cd /home/ubuntu/autonomyx-model-gateway
 
+            echo "=== Checking required env vars ==="
+            MISSING=()
+            for var in LITELLM_MASTER_KEY POSTGRES_PASSWORD GROQ_API_KEY \
+                       LANGFLOW_SECRET_KEY LANGFLOW_DB_PASSWORD LANGFLOW_ADMIN_PASSWORD \
+                       GLITCHTIP_SECRET_KEY GLITCHTIP_DB_PASSWORD; do
+              val=$(grep "^${var}=" /home/ubuntu/autonomyx-model-gateway/.env | cut -d= -f2-)
+              if [ -z "$val" ] || echo "$val" | grep -q "YOUR_"; then
+                MISSING+=("$var")
+              fi
+            done
+            if [ ${#MISSING[@]} -gt 0 ]; then
+              echo "ERROR: Missing or placeholder values in .env:"
+              printf '  - %s\n' "${MISSING[@]}"
+              exit 1
+            fi
+            echo "All required env vars present"
+
             echo "=== Pulling latest code ==="
             git fetch origin main
             git reset --hard origin/main

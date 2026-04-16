@@ -165,7 +165,7 @@ class TestGlitchTip:
     def test_glitchtip_version_pinned(self):
         image = self.compose["services"]["glitchtip"]["image"]
         assert "latest" not in image, "GlitchTip image must be pinned, not :latest"
-        assert "v6.0.10" in image
+        assert "6.1.5" in image
 
     def test_glitchtip_worker_uses_same_version(self):
         web = self.compose["services"]["glitchtip"]["image"]

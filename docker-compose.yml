@@ -240,7 +240,7 @@ services:
 
   # ── GlitchTip (error tracking) ────────────────────────────────────────────
   glitchtip:
-    image: glitchtip/glitchtip:v6.0.10
+    image: glitchtip/glitchtip:6.1.5
     container_name: autonomyx-glitchtip
     restart: always
     networks:
@@ -271,7 +271,7 @@ services:
       - "traefik.http.services.glitchtip.loadbalancer.server.port=8000"
 
   glitchtip-worker:
-    image: glitchtip/glitchtip:v6.0.10
+    image: glitchtip/glitchtip:6.1.5
     container_name: autonomyx-glitchtip-worker
     restart: always
     networks:
