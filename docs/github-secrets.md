@@ -104,3 +104,25 @@ and stored only in server `.env`:
 
 These are infrastructure passwords for internal services — they never
 leave the VPS and don't need to be in GitHub Secrets.
+
+### OVH API (for automated VPS provisioning)
+
+| Secret | Description | Where to get |
+|---|---|---|
+| `OVH_APPLICATION_KEY` | OVH API application key | eu.api.ovh.com/createToken/ |
+| `OVH_APPLICATION_SECRET` | OVH API application secret | eu.api.ovh.com/createToken/ |
+| `OVH_CONSUMER_KEY` | OVH API consumer key | eu.api.ovh.com/createToken/ |
+| `OVH_VPS_NAME` | VPS service name e.g. `vps-abc123.vps.ovh.net` | OVH control panel |
+
+Required API rights when generating the token:
+```
+GET  /me/sshKey
+GET  /me/sshKey/*
+POST /me/sshKey
+DELETE /me/sshKey/*
+GET  /vps
+GET  /vps/*
+POST /vps/*/reinstall
+```
+
+Usage: `python3 scripts/provision_vps.py`
