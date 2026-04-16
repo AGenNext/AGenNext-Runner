@@ -131,6 +131,12 @@ services:
     networks:
       - coolify
     environment:
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-autonomyx}
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -276,7 +282,12 @@ services:
   # frpc config mounted from ./frp/frpc.toml
   # Docs: https://github.com/fatedier/frp
   frpc:
-    image: snowdreamtech/frpc:0.62.0
+    build:
+      context: ./frpc
+      dockerfile: Dockerfile
+      args:
+        FRP_VERSION: "0.62.0"
+    image: ${ORG:-thefractionalpm}/autonomyx-frpc:0.62.0
     container_name: autonomyx-frpc
     restart: always
     networks:

@@ -83,6 +83,25 @@ jobs:
         id: meta
         run: echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Build & push frpc
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frpc
+          dockerfile: ./frpc/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ORG }}/autonomyx-frpc:0.62.0
+            ${{ env.ORG }}/autonomyx-frpc:latest
+          build-args: |
+            FRP_VERSION=0.62.0
+          labels: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/fatedier/frp
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
       - name: Build & push playwright
         uses: docker/build-push-action@v5
         with:
