@@ -92,6 +92,10 @@ services:
     - ./lago_callback.py:/app/lago_callback.py:ro
     - ./recommender.py:/app/recommender.py:ro
     - ./feedback.py:/app/feedback.py:ro
+    - ./openfga_authz.py:/app/openfga_authz.py:ro
+    - ./opa_middleware.py:/app/opa_middleware.py:ro
+    - ./agent_identity.py:/app/agent_identity.py:ro
+    - ./agent_discovery.py:/app/agent_discovery.py:ro
     - ./vertex_key.json:/app/vertex_key.json:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "8"]
     depends_on:
