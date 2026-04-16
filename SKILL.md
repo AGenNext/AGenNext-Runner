@@ -200,6 +200,9 @@ Local (Ollama/vLLM) → same-tier cloud (Groq/Together) → OpenAI/Anthropic
 | `references/two-node-setup.md` | Step 8.16 Two-Node Setup — 96GB primary + 48GB secondary, migration procedure, Qwen2.5-14B addition, no K8s required |
 | `references/runtime-decision-log.md` | Reference only — Ollama vs Docker Model Runner decision log, migration triggers, not a step |
 | `references/service-decision-log.md` | Reference only — All 19 services: why chosen, alternatives rejected, migration cost, review dates |
+| `references/gateway-mcp-server.md` | Agent Step 1 — MCP server wrapping gateway endpoints as typed tools |
+| `references/deployment-agent.md` | Agent Step 2 — Autonomous deployment agent (generate → validate → push → deploy → verify) |
+| `references/langflow-agent.md` | Agent Step 3 — Langflow flow template with intelligent routing, multilingual, feedback |
 | `references/preflight-guard.md` | Step 8.8 Pre-flight guard — tokeniser map, cost rates, context rejection, TPM limits |
 
 ---
