@@ -1,0 +1,95 @@
+# .github/dependabot.yml
+# Dependabot keeps dependencies current automatically.
+# Opens PRs weekly for outdated versions.
+# CI runs on each PR — compose validation + tests before merge.
+
+version: 2
+
+updates:
+
+  # ── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, github-actions]
+    commit-message:
+      prefix: "ci"
+
+  # ── Python dependencies ─────────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, python]
+    commit-message:
+      prefix: "deps"
+    # Don't bump major versions automatically
+    versioning-strategy: increase-if-necessary
+    ignore:
+      # LiteLLM moves fast — review manually
+      - dependency-name: "litellm"
+        update-types: ["version-update:semver-major"]
+
+  # ── Docker images ───────────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "docker"
+
+  # ── Sub-Dockerfiles ─────────────────────────────────────────────────────────
+  - package-ecosystem: docker
+    directory: /frpc
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "docker(frpc)"
+
+  - package-ecosystem: docker
+    directory: /classifier
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "docker(classifier)"
+
+  - package-ecosystem: docker
+    directory: /translator
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "docker(translator)"
+
+  - package-ecosystem: docker
+    directory: /playwright
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Kolkata
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "docker(playwright)"
