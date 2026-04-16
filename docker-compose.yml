@@ -13,6 +13,7 @@ volumes:
   langflow-data:
   langflow-db-data:
   ollama-data:
+  dockge-data:
   surrealdb-data:
   openfga-db-data:
   glitchtip-db-data:
@@ -266,6 +267,31 @@ services:
       retries: 5
     labels:
       - "traefik.enable=false"   # internal only
+
+
+  # ── Dockge (Docker Compose stack manager UI) ─────────────────────────────
+  dockge:
+    image: louislam/dockge:1
+    container_name: autonomyx-dockge
+    restart: always
+    networks:
+      - coolify
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dockge-data:/app/data
+      # Stacks dir: host path MUST equal container path
+      - /home/ubuntu:/home/ubuntu:ro
+    environment:
+      - DOCKGE_STACKS_DIR=/home/ubuntu
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dockge.rule=Host(`dockge.openautonomyx.com`)"
+      - "traefik.http.routers.dockge.entrypoints=https"
+      - "traefik.http.routers.dockge.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dockge.loadbalancer.server.port=5001"
+      # Restrict to internal network — Dockge has docker.sock access
+      - "traefik.http.routers.dockge.middlewares=dockge-ipallow"
+      - "traefik.http.middlewares.dockge-ipallow.ipallowlist.sourcerange=127.0.0.1/32,${ALLOWED_IPS:-0.0.0.0/0}"
 
   # ── Trust Centre (trust.openautonomyx.com) ───────────────────────────────
   trust:
