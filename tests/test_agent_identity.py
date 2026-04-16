@@ -63,6 +63,9 @@ class TestAgentModels:
             agent_name="fraud-sentinel",
             agent_type="workflow",
             sponsor_id="user:admin",
+            owner_ids=["user:admin"],
+            manager_id=None,
+            blueprint_id="blueprint:workflow",
             tenant_id="tenant-acme",
             allowed_models=["ollama/qwen3:30b-a3b"],
             budget_limit=2.0,
@@ -204,3 +207,81 @@ class TestAgentIdentitySpec:
         )
         content = open(path).read()
         assert "Microsoft Entra" in content
+
+
+class TestThreeRoleModel:
+    """Verify Owner/Sponsor/Manager model per Microsoft Entra Agent ID spec."""
+
+    def test_sponsor_required_field(self):
+        from agent_identity import AgentCreateRequest
+        import pytest
+        with pytest.raises(Exception):
+            AgentCreateRequest(
+                agent_name="test-agent",
+                tenant_id="tenant-acme",
+                # sponsor_id missing — must fail
+            )
+
+    def test_owner_ids_optional_defaults_empty(self):
+        from agent_identity import AgentCreateRequest
+        req = AgentCreateRequest(
+            agent_name="test-agent",
+            sponsor_id="user:admin",
+            tenant_id="tenant-acme",
+        )
+        assert req.owner_ids == []
+
+    def test_manager_id_optional(self):
+        from agent_identity import AgentCreateRequest
+        req = AgentCreateRequest(
+            agent_name="test-agent",
+            sponsor_id="user:admin",
+            tenant_id="tenant-acme",
+            manager_id="user:manager",
+        )
+        assert req.manager_id == "user:manager"
+
+    def test_blueprint_id_optional(self):
+        from agent_identity import AgentCreateRequest
+        req = AgentCreateRequest(
+            agent_name="test-agent",
+            sponsor_id="user:admin",
+            tenant_id="tenant-acme",
+            blueprint_id="blueprint:workflow",
+        )
+        assert req.blueprint_id == "blueprint:workflow"
+
+    def test_agent_response_exposes_all_roles(self):
+        from agent_identity import AgentResponse
+        fields = AgentResponse.model_fields
+        assert "sponsor_id" in fields
+        assert "owner_ids" in fields
+        assert "manager_id" in fields
+        assert "blueprint_id" in fields
+
+    def test_agent_response_never_exposes_key(self):
+        from agent_identity import AgentResponse
+        assert "litellm_key" not in AgentResponse.model_fields
+
+    def test_spec_has_three_role_section(self):
+        import os
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "references", "agent-identity-spec.md"
+        )
+        content = open(path).read()
+        assert "Owner" in content
+        assert "Sponsor" in content
+        assert "Manager" in content
+        assert "Required at creation" in content
+
+    def test_spec_has_blueprint_section(self):
+        import os
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "references", "agent-identity-spec.md"
+        )
+        content = open(path).read()
+        assert "Blueprint Pattern" in content
+        assert "blueprint:workflow" in content
+        assert "blueprint:ephemeral" in content

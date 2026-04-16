@@ -65,7 +65,11 @@ EPHEMERAL_TTL_HOURS = 1
 class AgentCreateRequest(BaseModel):
     agent_name:     str                  = Field(..., description="Unique name e.g. fraud-sentinel")
     agent_type:     str                  = Field("workflow", description="workflow|skill|mcp_tool|ephemeral")
-    sponsor_id:     str                  = Field(..., description="Keycloak user ID of creator")
+    # Administrative roles (per Microsoft Entra Agent ID model)
+    sponsor_id:     str                  = Field(..., description="REQUIRED — Business owner accountable for agent lifecycle")
+    owner_ids:      List[str]            = Field(default_factory=list, description="Technical admins — manage config and credentials")
+    manager_id:     Optional[str]        = Field(None, description="Org hierarchy manager — can request access packages")
+    blueprint_id:   Optional[str]        = Field(None, description="Blueprint this agent was created from")
     tenant_id:      str                  = Field(..., description="Keycloak group/tenant")
     allowed_models: Optional[List[str]]  = Field(None, description="Model allowlist — defaults to agent_name preset")
     budget_limit:   Optional[float]      = Field(None, description="Monthly budget USD")
@@ -78,7 +82,11 @@ class AgentResponse(BaseModel):
     agent_id:          str
     agent_name:        str
     agent_type:        str
+    # Administrative roles
     sponsor_id:        str
+    owner_ids:         List[str]
+    manager_id:        Optional[str]
+    blueprint_id:      Optional[str]
     tenant_id:         str
     allowed_models:    List[str]
     budget_limit:      float
@@ -272,6 +280,9 @@ async def create_agent(
         "agent_name":        req.agent_name,
         "agent_type":        req.agent_type,
         "sponsor_id":        req.sponsor_id,
+        "owner_ids":         req.owner_ids or [req.sponsor_id],  # sponsor is default owner
+        "manager_id":        req.manager_id,
+        "blueprint_id":      req.blueprint_id,
         "tenant_id":         req.tenant_id,
         "allowed_models":    allowed_models,
         "budget_limit":      budget_limit,
@@ -286,6 +297,9 @@ async def create_agent(
         agent_name=req.agent_name,
         agent_type=req.agent_type,
         sponsor_id=req.sponsor_id,
+        owner_ids=req.owner_ids or [req.sponsor_id],
+        manager_id=req.manager_id,
+        blueprint_id=req.blueprint_id,
         tenant_id=req.tenant_id,
         allowed_models=allowed_models,
         budget_limit=budget_limit,
