@@ -1,0 +1,189 @@
+# docker-compose.private-node.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# Autonomyx Model Gateway — Private Node Deployment
+#
+# FOR CUSTOMERS on the Private Node tier.
+# Single VPS. Full isolation. Your data never leaves your infrastructure.
+#
+# What's included:    LiteLLM, Ollama, Postgres, Prometheus, Grafana, Langflow
+# What's NOT here:    Lago, Keycloak, Langfuse, Mailserver
+#                     (these live on the Autonomyx operator stack)
+#
+# Auth:       Your tenant SSO via Autonomyx Keycloak (auth.openautonomyx.com)
+# Billing:    Autonomyx bills you via Lago — you don't run billing yourself
+# Tracing:    Your traces go to your Langfuse org on Autonomyx infra
+# Email:      Autonomyx mailserver handles your invoices
+#
+# Minimum spec:  16GB RAM, 40GB disk, 4 CPU cores
+# Recommended:   32GB RAM, 100GB disk (fits one 14B always-on model)
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+networks:
+  private:
+    driver: bridge
+
+volumes:
+  litellm-db-data:
+  ollama-data:
+  prometheus-data:
+  grafana-data:
+  langflow-data:
+  langflow-db-data:
+
+services:
+
+  # ── LiteLLM Proxy ─────────────────────────────────────────────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: private-litellm
+    restart: always
+    networks:
+      - private
+    ports:
+      - "4000:4000"
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - DATABASE_URL=postgresql://litellm:${POSTGRES_PASSWORD}@litellm-db:5432/litellm
+      - STORE_MODEL_IN_DB=True
+      - LITELLM_UI_USERNAME=${LITELLM_UI_USERNAME:-admin}
+      - LITELLM_UI_PASSWORD=${LITELLM_UI_PASSWORD}
+      # Autonomyx operator endpoints (your traces + billing go here)
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://traces.openautonomyx.com}
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./lago_callback.py:/app/lago_callback.py:ro
+      - ./recommender.py:/app/recommender.py:ro
+      - ./feedback.py:/app/feedback.py:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "4"]
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Postgres (LiteLLM spend logs only) ────────────────────────────────────
+  litellm-db:
+    image: postgres:15-alpine
+    container_name: private-litellm-db
+    restart: always
+    networks:
+      - private
+    environment:
+      - POSTGRES_USER=litellm
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=litellm
+    volumes:
+      - litellm-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Ollama (local model runtime) ───────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: private-ollama
+    restart: always
+    networks:
+      - private
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./ollama-pull-private.sh:/ollama-pull.sh:ro
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-2}
+      - OLLAMA_FLASH_ATTENTION=1
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+    # mem_limit set based on VPS RAM — see .env.private comments
+    mem_limit: ${OLLAMA_MEM_LIMIT:-14g}
+    memswap_limit: ${OLLAMA_MEM_LIMIT:-14g}
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 8 && sh /ollama-pull.sh && wait"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: private-prometheus
+    restart: always
+    networks:
+      - private
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: private-grafana
+    restart: always
+    networks:
+      - private
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ── Langflow (pre-loaded with Autonomyx flows) ────────────────────────────
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: private-langflow
+    restart: always
+    networks:
+      - private
+    ports:
+      - "7860:7860"
+    depends_on:
+      langflow-db:
+        condition: service_healthy
+    environment:
+      - LANGFLOW_DATABASE_URL=postgresql://langflow:${LANGFLOW_DB_PASSWORD}@langflow-db:5432/langflow
+      - LANGFLOW_SECRET_KEY=${LANGFLOW_SECRET_KEY}
+      - LANGFLOW_SUPERUSER=${LANGFLOW_ADMIN_EMAIL}
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_ADMIN_PASSWORD}
+      - LANGFLOW_AUTO_LOGIN=false
+      # Wire to local LiteLLM — all flows use local models
+      - OPENAI_API_BASE=http://litellm:4000/v1
+      - OPENAI_API_KEY=${LANGFLOW_VIRTUAL_KEY}
+      - LANGFLOW_STORE=false
+      - LANGFLOW_TELEMETRY_ENABLED=false
+      - LANGFLOW_LOG_LEVEL=warning
+    volumes:
+      - langflow-data:/app/langflow
+      - ./flows:/app/flows:ro
+
+  langflow-db:
+    image: postgres:15-alpine
+    container_name: private-langflow-db
+    restart: always
+    networks:
+      - private
+    environment:
+      - POSTGRES_USER=langflow
+      - POSTGRES_PASSWORD=${LANGFLOW_DB_PASSWORD}
+      - POSTGRES_DB=langflow
+    volumes:
+      - langflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

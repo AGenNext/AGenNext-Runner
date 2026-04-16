@@ -2,6 +2,21 @@
 
 ## Architecture overview
 
+## Important — this is the OPERATOR stack, not a customer requirement
+
+> The two-node setup described in this document is for **Autonomyx** (you, the operator)
+> running the shared SaaS platform for multiple customers.
+>
+> **Customers on the Private Node tier get a single VPS.**
+> They run `docker-compose.private-node.yml` — not this two-node setup.
+> Lago, Keycloak, Langfuse, and Mailserver live on YOUR 48GB node and
+> serve all customers. Individual customers never run these themselves.
+>
+> See `docker-compose.private-node.yml` for the customer deployment file.
+
+---
+
+
 ```
 96GB VPS (primary)                    48GB VPS (secondary)
 ──────────────────────────────────    ──────────────────────────────
