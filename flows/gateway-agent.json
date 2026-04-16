@@ -1,6 +1,6 @@
 {
   "name": "Autonomyx Gateway Agent",
-  "description": "Intelligent LLM routing via Autonomyx Gateway. Auto-selects best model per task type and budget. Handles multilingual input/output. Captures user feedback to Langfuse.",
+  "description": "Pre-built Autonomyx workflow. Language detect \u2192 intelligent model routing \u2192 LLM response \u2192 feedback capture. Part of Autonomyx Model Gateway.",
   "data": {
     "nodes": [
       {
@@ -32,9 +32,11 @@
             "documentation": ""
           }
         },
-        "position": { "x": 80, "y": 300 }
+        "position": {
+          "x": 80,
+          "y": 300
+        }
       },
-
       {
         "id": "HTTPRequest-detect-lang",
         "type": "genericNode",
@@ -56,7 +58,9 @@
               },
               "headers": {
                 "type": "dict",
-                "value": { "Content-Type": "application/json" },
+                "value": {
+                  "Content-Type": "application/json"
+                },
                 "display_name": "Headers",
                 "show": true
               },
@@ -71,9 +75,11 @@
             "description": "Detect language of user input via translation sidecar"
           }
         },
-        "position": { "x": 320, "y": 180 }
+        "position": {
+          "x": 320,
+          "y": 180
+        }
       },
-
       {
         "id": "HTTPRequest-recommend",
         "type": "genericNode",
@@ -113,9 +119,11 @@
             "description": "Get best model for this prompt from gateway recommender"
           }
         },
-        "position": { "x": 560, "y": 300 }
+        "position": {
+          "x": 560,
+          "y": 300
+        }
       },
-
       {
         "id": "OpenAIModel-001",
         "type": "genericNode",
@@ -166,9 +174,11 @@
             "description": "Routes to recommended model via Autonomyx Gateway"
           }
         },
-        "position": { "x": 800, "y": 300 }
+        "position": {
+          "x": 800,
+          "y": 300
+        }
       },
-
       {
         "id": "HTTPRequest-feedback",
         "type": "genericNode",
@@ -209,9 +219,11 @@
             "description": "Send response quality feedback to Langfuse via gateway"
           }
         },
-        "position": { "x": 1040, "y": 460 }
+        "position": {
+          "x": 1040,
+          "y": 460
+        }
       },
-
       {
         "id": "ChatOutput-001",
         "type": "genericNode",
@@ -236,10 +248,12 @@
             "description": "Return response to user"
           }
         },
-        "position": { "x": 1040, "y": 300 }
+        "position": {
+          "x": 1040,
+          "y": 300
+        }
       }
     ],
-
     "edges": [
       {
         "id": "edge-input-to-detect",
@@ -285,11 +299,16 @@
         "targetHandle": "body"
       }
     ],
-
-    "viewport": { "zoom": 0.8, "x": 0, "y": 0 }
+    "viewport": {
+      "zoom": 0.8,
+      "x": 0,
+      "y": 0
+    }
   },
-
-  "style": { "node_colors": {}, "edge_colors": {} },
+  "style": {
+    "node_colors": {},
+    "edge_colors": {}
+  },
   "is_component": false,
   "last_tested_version": "1.0",
   "variables": [
@@ -297,7 +316,7 @@
       "name": "LANGFLOW_VIRTUAL_KEY",
       "type": "str",
       "value": "sk-autonomyx-langflow-prod",
-      "description": "LiteLLM virtual key — create via /key/generate with appropriate budget"
+      "description": "LiteLLM virtual key \u2014 create via /key/generate with appropriate budget"
     },
     {
       "name": "GATEWAY_URL",

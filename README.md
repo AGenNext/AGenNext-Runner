@@ -1,153 +1,181 @@
-# autonomyx-llm-gateway
+# Autonomyx Model Gateway
 
-**Autonomyx LLM Gateway** — end-to-end LiteLLM proxy skill for the Autonomyx platform.
+**A complete, self-hosted AI platform. Not a proxy. Not a toolkit. A product.**
 
-Produces a complete, production-ready LLM gateway stack covering 14 model providers, billing, auth, observability, local language translation, human feedback, and segment-specific model improvement.
+One deployment gives you:
+- Best open-source models running locally (zero API cost for compute)
+- Intelligent routing — right model for every task, automatically
+- Metered billing per tenant — Lago invoices, Langfuse traces
+- Multi-tenant auth — Keycloak, one command to onboard a customer
+- Pre-built AI workflows — ready to call, not ready to configure
+- 22 Indian languages + Arabic + Southeast Asian — built in
+- Human feedback loop — improves models on your actual workload
 
 ---
 
-## What this skill produces
+## What your customer does
 
-| Artifact | Description |
+```bash
+# That's it. One call. Everything else is handled.
+curl https://flows.openautonomyx.com/api/v1/run/{flow_id} \
+  -H "Authorization: Bearer lf-their-api-key" \
+  -d '{"input_value": "Review this contract for risk clauses"}'
+```
+
+They don't configure models. They don't manage routing. They don't touch billing.
+You handle all of it. They get results.
+
+---
+
+## What you get as the operator
+
+```
+flows.openautonomyx.com    → Autonomyx Langflow (your pre-built workflows)
+llm.openautonomyx.com      → Gateway API (direct model access for developers)
+traces.openautonomyx.com   → Langfuse (per-tenant trace isolation)
+billing.openautonomyx.com  → Lago (invoicing, metered plans)
+auth.openautonomyx.com     → Keycloak (tenant onboarding, SSO)
+metrics.openautonomyx.com  → Grafana (Prometheus, dashboard ID 17587)
+mcp.openautonomyx.com      → MCP server (8 tools for Claude / agent access)
+```
+
+---
+
+## Models running locally (zero marginal cost)
+
+| Model | Tasks | Always-on | RAM |
+|---|---|---|---|
+| Qwen3-30B-A3B | reason, agent, chat | ✅ | 19GB |
+| Qwen2.5-Coder-32B | code | ✅ | 22GB |
+| Qwen2.5-14B | extract, structured output | ✅ | 9GB |
+| Llama 3.2 11B Vision | vision | warm slot | 9GB |
+| Llama 3.1 8B | chat overflow | warm slot | 6GB |
+| Gemma 3 9B | long context | warm slot | 6GB |
+
+Peak RAM: ~84GB. Runs on a 96GB VPS. No GPU required.
+
+---
+
+## Pre-built workflows (flows/)
+
+| Flow | What it does |
 |---|---|
-| `config.yaml` | LiteLLM model list, routing, fallbacks, budgets |
-| `docker-compose.yml` | Full stack — Coolify or generic Docker variant |
-| `prometheus.yml` | Metrics scrape config |
-| `.env.example` | All env vars, all providers, no real keys |
-| `lago_callback.py` | Dual-track billing callback (LiteLLM → Lago) |
-| `recommender.py` | Model recommender FastAPI router |
-| `feedback.py` | Human feedback capture endpoint |
-| `translator_server.py` | Local language translation sidecar |
-| `classifier/` | Local task classifier (sentence-transformers + LogisticRegression) |
-| `kc_lago_sync.py` | Keycloak group → Lago + LiteLLM tenant sync |
-| `ollama-pull.sh` | Model pull script (96GB RAM, Option C stack) |
-| `test-tokens.sh` | Token count + dual-track billing verify |
+| `gateway-agent.json` | Language detect → recommend model → LLM → feedback capture |
+
+Add your own flows to `flows/` — they load into Autonomyx Langflow on startup.
 
 ---
 
-## Stack
+## Customer onboarding — one command
 
-### Inference
-- **LiteLLM** — unified proxy for 14 providers
-- **Ollama** — local model runtime (always-on: Qwen3-30B-A3B + Qwen2.5-Coder-32B + Qwen2.5-14B)
+```bash
+# Create a Keycloak group → auto-provisions:
+#   Lago customer (billing)
+#   LiteLLM virtual key (spend tracking)
+#   Langfuse organisation (trace isolation)
+#   Langflow API key (workflow access)
 
-### Providers covered
-Local: Ollama, vLLM, HuggingFace TGI
-Cloud: OpenAI, Anthropic/Claude, Google Gemini, Mistral, Groq, Fireworks, Together.ai, OpenRouter, Azure OpenAI, AWS Bedrock
+curl -X POST https://auth.openautonomyx.com/admin/realms/autonomyx/groups \
+  -H "Authorization: Bearer $KC_ADMIN_TOKEN" \
+  -d '{"name": "tenant-acme"}'
+# kc_lago_sync.py handles the rest automatically
+```
 
-### Billing
-- **Lago** (OSS, self-hosted) — metered billing, invoicing, customer plans
-- **LiteLLM Postgres** — operational spend logs, real-time budget enforcement
-- Dual-track: LiteLLM enforces budgets, Lago generates invoices
+---
 
-### Auth
-- **Keycloak** — SSO, tenant group management, OIDC for all services
+## Pricing tiers (your customers)
 
-### Observability
-- **Langfuse v3** — per-tenant LLM tracing, human feedback, eval datasets
-- **Prometheus + Grafana** — infrastructure metrics (dashboard ID 17587)
+| Tier | Price | What they get |
+|---|---|---|
+| Free | 10M tokens/month | Gateway API access |
+| Developer | ₹999/month | 100M tokens, all local models |
+| Growth | ₹4,999/month | 1B tokens, cloud fallback |
+| SaaS Basic | ₹14,999/month | 5B tokens, white-label, Lago sub-billing |
+| Private Node | ₹50,000+/month | Dedicated infra, DPDP DPA, India region |
 
-### Email
-- **Docker Mailserver** — self-hosted SMTP for Lago invoices + Keycloak auth emails
+Shared SaaS: billing and trace data isolated per tenant. Compute shared.
+Private Node: full infrastructure isolation. DPDP DPA signable.
 
-### Translation
-- **fastText LID** (Apache 2.0) — language detection, 917KB
-- **IndicTrans2** (MIT) — 22 Indian languages ↔ English
-- **Opus-MT** (Apache 2.0) — Arabic + Southeast Asian ↔ English
-- Native routing via **Qwen3-30B-A3B** for major Indian languages (no translation overhead)
+---
 
-> ⚠️ NLLB-200 and SeamlessM4T are CC-BY-NC 4.0 — not commercially usable. Neither is included.
+## Stack — every component chosen deliberately
 
-### Model Improvement
-- Opt-in human feedback via embeddable widget + developer SDK
-- LLM-as-judge scoring via Langfuse
-- RAG per segment via SurrealDB + nomic-embed-text
-- LoRA fine-tuning via Unsloth + QLoRA (GPU phase)
-- PII anonymisation before any training data storage
+19 services. Every one has documented rationale, rejected alternatives, migration cost, and a review date. See `references/service-decision-log.md`. Next review: October 2026.
+
+| Layer | Component | Licence |
+|---|---|---|
+| Gateway | LiteLLM OSS | MIT |
+| Models | Ollama + llama.cpp | MIT |
+| Workflows | Langflow | MIT |
+| Billing | Lago OSS | AGPL-3.0 |
+| Auth | Keycloak | Apache 2.0 |
+| Tracing | Langfuse v3 | MIT |
+| Metrics | Prometheus + Grafana | Apache 2.0 |
+| Translation (Indian) | IndicTrans2 | MIT |
+| Translation (Arabic/SEA) | Opus-MT | Apache 2.0 |
+| Language detection | fastText LID | Apache 2.0 |
+| Task classifier | sentence-transformers | Apache 2.0 |
+
+> ⚠️ NLLB-200 and SeamlessM4T are CC-BY-NC 4.0 — not commercially usable. Neither is in this stack.
 
 ---
 
 ## Two-node deployment (recommended)
 
-| 96GB Primary | 48GB Secondary |
-|---|---|
-| LiteLLM, Ollama, Prometheus, Grafana, Classifier, Translator | Langfuse, Lago, Keycloak, Mailserver |
-| Peak RAM: ~84GB | Peak RAM: ~20GB |
+```
+96GB VPS — inference          48GB VPS — business logic
+──────────────────────        ──────────────────────────
+LiteLLM + Ollama              Langfuse
+Langflow + flows              Lago
+Prometheus + Grafana          Keycloak
+Classifier + Translator       Mailserver
+Peak: ~84GB                   Peak: ~20GB / 28GB free
+```
 
-No Kubernetes required. Two independent Coolify-managed Docker Compose stacks.
-
----
-
-## Model stack (96GB CPU-only VPS)
-
-| Model | RAM | Always-on | Tasks |
-|---|---|---|---|
-| Qwen3-30B-A3B Q4_K_M | 19GB | ✅ | reason, agent, chat |
-| Qwen2.5-Coder-32B Q4_K_M | 22GB | ✅ | code |
-| Qwen2.5-14B Q4_K_M | 9GB | ✅ | extract, structured output |
-| Llama 3.2 11B Vision Q4_K_M | 9GB | LRU | vision |
-| Llama 3.1 8B Q4_K_M | 6GB | LRU | chat overflow |
-| Gemma 3 9B Q4_K_M | 6GB | LRU | long_context |
+No Kubernetes. Two Coolify-managed Docker Compose stacks.
 
 ---
 
-## Pricing tiers
-
-| Tier | Price | Compute |
-|---|---|---|
-| Free | 10M tokens/month | Shared |
-| Developer | ₹999/month | Shared |
-| Growth | ₹4,999/month | Shared |
-| SaaS Basic | ₹14,999/month | Shared + white-label |
-| Private Node | ₹50,000+/month | Dedicated |
-
-Shared SaaS: billing and trace data isolated per tenant. Compute shared (standard for SaaS LLM providers).
-Private Node: full infrastructure isolation, DPDP DPA signable.
-
----
-
-## Service decision log
-
-All 19 services have documented decision rationale, rejected alternatives, migration cost, and review dates. See `references/service-decision-log.md`.
-
-Next bulk review: **October 2026**
-
----
-
-## Skill structure
+## Repository structure
 
 ```
-autonomyx-llm-gateway/
-├── SKILL.md                          # Master skill — 16 steps + output checklist
+autonomyx-model-gateway/
+├── README.md
+├── SKILL.md                          # Claude skill — 16 steps, full output checklist
+├── flows/
+│   └── gateway-agent.json            # Pre-built workflow: detect → route → respond → feedback
 └── references/
-    ├── config-template.md            # Annotated config.yaml — all 14 providers
-    ├── docker-compose-template.md    # Coolify + generic Docker variants
-    ├── defaults.md                   # Canonical default values
+    ├── config-template.md            # LiteLLM config — all 14 providers
+    ├── docker-compose-template.md    # Coolify + generic variants, all services
+    ├── defaults.md                   # Canonical defaults
     ├── env-vars.md                   # All env vars, all services
-    ├── model-limits.md               # Context windows + max output per model
-    ├── lago-integration.md           # Dual-track billing setup
+    ├── model-limits.md               # Context windows per model
+    ├── lago-integration.md           # Dual-track billing
     ├── mailserver-integration.md     # SMTP, DNS, DKIM
     ├── keycloak-integration.md       # Auth, tenant sync, OIDC
-    ├── langflow-integration.md       # Langflow → gateway wiring
-    ├── mcp-integration.md            # autonomyx-mcp → gateway wiring
-    ├── model-recommender.md          # /recommend endpoint, scoring, registry
-    ├── local-classifier.md           # sentence-transformers sidecar
-    ├── local-model-catalogue.md      # Model tiers, 96GB Option C stack
-    ├── profitability.md              # Pricing architecture, cost model, GTM
-    ├── langfuse-integration.md       # Multi-tenant tracing, tenancy audit
+    ├── langflow-integration.md       # Gateway ↔ Langflow wiring
+    ├── langflow-agent.md             # Flow architecture, variants
+    ├── mcp-integration.md            # autonomyx-mcp wiring
+    ├── model-recommender.md          # /recommend endpoint
+    ├── local-classifier.md           # Task classifier sidecar
+    ├── local-model-catalogue.md      # Model tiers, 96GB stack
+    ├── profitability.md              # Pricing, cost model, GTM
+    ├── langfuse-integration.md       # Multi-tenant tracing
     ├── model-improvement.md          # Opt-in feedback, RAG, fine-tuning
-    ├── human-feedback.md             # Widget + SDK + Langfuse score routing
-    ├── translation.md                # IndicTrans2 + Opus-MT + fastText LID
-    ├── two-node-setup.md             # 96GB + 48GB node split, migration
+    ├── human-feedback.md             # Widget + SDK + Langfuse routing
+    ├── translation.md                # IndicTrans2 + Opus-MT + fastText
+    ├── two-node-setup.md             # 96GB + 48GB split, migration
+    ├── gateway-mcp-server.md         # MCP server — 8 typed tools
+    ├── deployment-agent.md           # Autonomous deployment pipeline
     ├── runtime-decision-log.md       # Ollama vs Docker Model Runner
-    └── service-decision-log.md       # All 19 services: why chosen, review dates
+    └── service-decision-log.md       # All 19 services: why, when to review
 ```
 
 ---
 
-## Part of the Autonomyx Skills Marketplace
+## Contact
 
-- Skills repo: [agentnxxt/agentskills](https://github.com/agentnxxt/agentskills)
 - Platform: [openautonomyx.com](https://openautonomyx.com)
-- Contact: chinmay@openautonomyx.com
+- Skills: [agentnxxt/agentskills](https://github.com/agentnxxt/agentskills)
+- Email: chinmay@openautonomyx.com
 - Book: [cal.com/thefractionalpm](https://cal.com/thefractionalpm)
