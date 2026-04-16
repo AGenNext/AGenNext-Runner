@@ -82,11 +82,10 @@ def test_dockerfile_base_image_exists(docker_client, dockerfile):
     """Every FROM image in every Dockerfile must exist on the registry."""
     content = dockerfile.read_text()
     from_lines = re.findall(r'^FROM\s+([^\s]+)', content, re.MULTILINE)
-    # Filter out multi-stage build aliases (FROM x AS y — check x only)
+    stage_aliases = set(re.findall(r'^FROM\s+\S+\s+AS\s+(\S+)', content, re.MULTILINE | re.IGNORECASE))
     errors = []
     for from_image in from_lines:
-        # Skip build args like ${PYTHON_VERSION}
-        if "${" in from_image or from_image == "scratch":
+        if "${" in from_image or from_image == "scratch" or from_image in stage_aliases:
             continue
         result = subprocess.run(
             ["docker", "manifest", "inspect", from_image],
@@ -130,8 +129,8 @@ def test_opa_policy_with_container(docker_client):
     from testcontainers.core.waiting_utils import wait_for_logs
 
     with DockerContainer("openpolicyagent/opa:0.70.0-static") \
-            .with_volume_mapping(str(opa_dir), "/opa", "ro") \
-            .with_command("check /opa/policy.rego") as opa:
+            .with_volume_mapping(str(opa_dir), "/policies", "ro") \
+            .with_command("check /policies/policy.rego") as opa:
         logs = opa.get_logs()
         stdout = logs[0].decode() if logs[0] else ""
         stderr = logs[1].decode() if logs[1] else ""
@@ -144,9 +143,9 @@ def test_opa_policy_with_container(docker_client):
     if test_file.exists():
         result = subprocess.run(
             ["docker", "run", "--rm",
-             "-v", f"{opa_dir}:/opa:ro",
+             "-v", f"{opa_dir}:/policies:ro",
              "openpolicyagent/opa:0.70.0-static",
-             "test", "/opa/"],
+             "test", "/policies/"],
             capture_output=True, text=True, timeout=60
         )
         assert result.returncode == 0, (
@@ -166,9 +165,9 @@ def test_openfga_model_valid(docker_client):
     # Use openfga CLI to validate the model
     result = subprocess.run(
         ["docker", "run", "--rm",
-         "-v", f"{ROOT / 'openfga'}:/fga:ro",
-         "openfga/openfga:v1.8.0",
-         "validate", "--file", "/fga/model.fga"],
+         "-v", f"{ROOT / 'openfga'}:/workdir:ro",
+         "openfga/cli:latest",
+         "model", "validate", "--file", "/workdir/model.fga"],
         capture_output=True, text=True, timeout=60
     )
     # OpenFGA validate exits 0 on success

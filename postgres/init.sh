@@ -2,6 +2,7 @@
 # postgres/init.sh
 # Creates all application databases and users on first container start.
 # Runs via /docker-entrypoint-initdb.d/ — once only on fresh volume.
+# Idempotent: uses \gexec because Postgres has no CREATE DATABASE IF NOT EXISTS.
 set -e
 
 echo "=== Initialising Autonomyx databases ==="
@@ -13,7 +14,7 @@ DO \$\$ BEGIN
     CREATE USER litellm WITH PASSWORD '$LITELLM_DB_PASSWORD';
   END IF;
 END \$\$;
-CREATE DATABASE IF NOT EXISTS litellm;
+SELECT 'CREATE DATABASE litellm' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'litellm')\gexec
 ALTER DATABASE litellm OWNER TO litellm;
 GRANT ALL PRIVILEGES ON DATABASE litellm TO litellm;
 
@@ -22,7 +23,7 @@ DO \$\$ BEGIN
     CREATE USER langflow WITH PASSWORD '$LANGFLOW_DB_PASSWORD';
   END IF;
 END \$\$;
-CREATE DATABASE IF NOT EXISTS langflow;
+SELECT 'CREATE DATABASE langflow' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'langflow')\gexec
 ALTER DATABASE langflow OWNER TO langflow;
 GRANT ALL PRIVILEGES ON DATABASE langflow TO langflow;
 
@@ -31,7 +32,7 @@ DO \$\$ BEGIN
     CREATE USER openfga WITH PASSWORD '$OPENFGA_DB_PASSWORD';
   END IF;
 END \$\$;
-CREATE DATABASE IF NOT EXISTS openfga;
+SELECT 'CREATE DATABASE openfga' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'openfga')\gexec
 ALTER DATABASE openfga OWNER TO openfga;
 GRANT ALL PRIVILEGES ON DATABASE openfga TO openfga;
 
@@ -40,19 +41,18 @@ DO \$\$ BEGIN
     CREATE USER glitchtip WITH PASSWORD '$GLITCHTIP_DB_PASSWORD';
   END IF;
 END \$\$;
-CREATE DATABASE IF NOT EXISTS glitchtip;
+SELECT 'CREATE DATABASE glitchtip' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'glitchtip')\gexec
 ALTER DATABASE glitchtip OWNER TO glitchtip;
 GRANT ALL PRIVILEGES ON DATABASE glitchtip TO glitchtip;
 
-EOSQL
-echo "=== All databases and users created ==="
-
-# Added by infisical setup
 DO \$\$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'infisical') THEN
     CREATE USER infisical WITH PASSWORD '$INFISICAL_DB_PASSWORD';
   END IF;
 END \$\$;
-CREATE DATABASE IF NOT EXISTS infisical;
+SELECT 'CREATE DATABASE infisical' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'infisical')\gexec
 ALTER DATABASE infisical OWNER TO infisical;
 GRANT ALL PRIVILEGES ON DATABASE infisical TO infisical;
+
+EOSQL
+echo "=== All databases and users created ==="

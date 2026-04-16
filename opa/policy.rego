@@ -28,6 +28,8 @@ deny_reasons contains "budget_exceeded" if {
     input.agent.spend_this_period >= input.agent.budget_limit
 }
 
+default budget_warning := false
+
 budget_warning if {
     input.agent.spend_this_period >= (input.agent.budget_limit * 0.9)
     input.agent.spend_this_period < input.agent.budget_limit
