@@ -68,6 +68,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: cloud
+          endpoint: "${{ secrets.DOCKERHUB_USERNAME }}/autonomyx"
+        continue-on-error: true   # fall back to local buildx if Build Cloud not enabled
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -129,6 +133,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+
+      - name: Docker Scout — scan all images for CVEs
+        uses: docker/scout-action@v1
+        continue-on-error: true   # advisory only — does not fail the build
+        with:
+          command: cves
+          image: |
+            ${{ env.ORG }}/autonomyx-playwright:${{ steps.meta.outputs.version }}
+            ${{ env.ORG }}/autonomyx-classifier:${{ steps.meta.outputs.version }}
+            ${{ env.ORG }}/autonomyx-translator:${{ steps.meta.outputs.version }}
+          only-severities: critical,high
+          exit-code: false
+          summary: true
 
   # ── Job 3: Deploy ──────────────────────────────────────────────────────────
   deploy:
