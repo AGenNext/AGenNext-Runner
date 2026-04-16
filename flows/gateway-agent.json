@@ -1,0 +1,309 @@
+{
+  "name": "Autonomyx Gateway Agent",
+  "description": "Intelligent LLM routing via Autonomyx Gateway. Auto-selects best model per task type and budget. Handles multilingual input/output. Captures user feedback to Langfuse.",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-001",
+        "type": "genericNode",
+        "data": {
+          "type": "ChatInput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "required": false,
+                "placeholder": "Type your message...",
+                "show": true,
+                "name": "input_value",
+                "display_name": "Message",
+                "value": ""
+              },
+              "should_store_message": {
+                "type": "bool",
+                "value": true,
+                "show": true,
+                "name": "should_store_message",
+                "display_name": "Store Message"
+              }
+            },
+            "description": "User message input",
+            "display_name": "Chat Input",
+            "documentation": ""
+          }
+        },
+        "position": { "x": 80, "y": 300 }
+      },
+
+      {
+        "id": "HTTPRequest-detect-lang",
+        "type": "genericNode",
+        "data": {
+          "type": "HTTPRequest",
+          "node": {
+            "template": {
+              "url": {
+                "type": "str",
+                "value": "http://litellm:4000/translate",
+                "display_name": "URL",
+                "show": true
+              },
+              "method": {
+                "type": "str",
+                "value": "POST",
+                "display_name": "Method",
+                "show": true
+              },
+              "headers": {
+                "type": "dict",
+                "value": { "Content-Type": "application/json" },
+                "display_name": "Headers",
+                "show": true
+              },
+              "body": {
+                "type": "str",
+                "value": "{\"text\": \"{user_message}\", \"detect_only\": true}",
+                "display_name": "Body",
+                "show": true
+              }
+            },
+            "display_name": "Detect Language",
+            "description": "Detect language of user input via translation sidecar"
+          }
+        },
+        "position": { "x": 320, "y": 180 }
+      },
+
+      {
+        "id": "HTTPRequest-recommend",
+        "type": "genericNode",
+        "data": {
+          "type": "HTTPRequest",
+          "node": {
+            "template": {
+              "url": {
+                "type": "str",
+                "value": "http://litellm:4000/recommend",
+                "display_name": "URL",
+                "show": true
+              },
+              "method": {
+                "type": "str",
+                "value": "POST",
+                "display_name": "Method",
+                "show": true
+              },
+              "headers": {
+                "type": "dict",
+                "value": {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer {LANGFLOW_VIRTUAL_KEY}"
+                },
+                "display_name": "Headers",
+                "show": true
+              },
+              "body": {
+                "type": "str",
+                "value": "{\"prompt\": \"{user_message}\", \"virtual_key\": \"{LANGFLOW_VIRTUAL_KEY}\", \"top_n\": 1}",
+                "display_name": "Body",
+                "show": true
+              }
+            },
+            "display_name": "Recommend Model",
+            "description": "Get best model for this prompt from gateway recommender"
+          }
+        },
+        "position": { "x": 560, "y": 300 }
+      },
+
+      {
+        "id": "OpenAIModel-001",
+        "type": "genericNode",
+        "data": {
+          "type": "OpenAIModel",
+          "node": {
+            "template": {
+              "openai_api_base": {
+                "type": "str",
+                "value": "http://litellm:4000/v1",
+                "display_name": "API Base",
+                "show": true
+              },
+              "openai_api_key": {
+                "type": "str",
+                "value": "{LANGFLOW_VIRTUAL_KEY}",
+                "display_name": "API Key",
+                "show": true,
+                "password": true
+              },
+              "model_name": {
+                "type": "str",
+                "value": "ollama/qwen3:30b-a3b",
+                "display_name": "Model Name",
+                "show": true,
+                "info": "Overridden at runtime by recommender output"
+              },
+              "temperature": {
+                "type": "float",
+                "value": 0.7,
+                "display_name": "Temperature",
+                "show": true
+              },
+              "max_tokens": {
+                "type": "int",
+                "value": 2048,
+                "display_name": "Max Tokens",
+                "show": true
+              },
+              "stream": {
+                "type": "bool",
+                "value": true,
+                "display_name": "Stream",
+                "show": true
+              }
+            },
+            "display_name": "LLM via Gateway",
+            "description": "Routes to recommended model via Autonomyx Gateway"
+          }
+        },
+        "position": { "x": 800, "y": 300 }
+      },
+
+      {
+        "id": "HTTPRequest-feedback",
+        "type": "genericNode",
+        "data": {
+          "type": "HTTPRequest",
+          "node": {
+            "template": {
+              "url": {
+                "type": "str",
+                "value": "http://litellm:4000/feedback",
+                "display_name": "URL",
+                "show": true
+              },
+              "method": {
+                "type": "str",
+                "value": "POST",
+                "display_name": "Method",
+                "show": true
+              },
+              "headers": {
+                "type": "dict",
+                "value": {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer {LANGFLOW_VIRTUAL_KEY}"
+                },
+                "display_name": "Headers",
+                "show": true
+              },
+              "body": {
+                "type": "str",
+                "value": "{\"trace_id\": \"{llm_response_id}\", \"score\": 1, \"virtual_key\": \"{LANGFLOW_VIRTUAL_KEY}\", \"source\": \"langflow\"}",
+                "display_name": "Body",
+                "show": true,
+                "info": "Replace score with actual user feedback value (1=good, 0=bad)"
+              }
+            },
+            "display_name": "Capture Feedback",
+            "description": "Send response quality feedback to Langfuse via gateway"
+          }
+        },
+        "position": { "x": 1040, "y": 460 }
+      },
+
+      {
+        "id": "ChatOutput-001",
+        "type": "genericNode",
+        "data": {
+          "type": "ChatOutput",
+          "node": {
+            "template": {
+              "input_value": {
+                "type": "str",
+                "required": true,
+                "display_name": "Text",
+                "show": true
+              },
+              "should_store_message": {
+                "type": "bool",
+                "value": true,
+                "show": true,
+                "display_name": "Store Message"
+              }
+            },
+            "display_name": "Chat Output",
+            "description": "Return response to user"
+          }
+        },
+        "position": { "x": 1040, "y": 300 }
+      }
+    ],
+
+    "edges": [
+      {
+        "id": "edge-input-to-detect",
+        "source": "ChatInput-001",
+        "sourceHandle": "message",
+        "target": "HTTPRequest-detect-lang",
+        "targetHandle": "body"
+      },
+      {
+        "id": "edge-input-to-recommend",
+        "source": "ChatInput-001",
+        "sourceHandle": "message",
+        "target": "HTTPRequest-recommend",
+        "targetHandle": "body"
+      },
+      {
+        "id": "edge-recommend-to-llm",
+        "source": "HTTPRequest-recommend",
+        "sourceHandle": "response",
+        "target": "OpenAIModel-001",
+        "targetHandle": "model_name",
+        "description": "Injects recommended model alias into LLM call"
+      },
+      {
+        "id": "edge-input-to-llm",
+        "source": "ChatInput-001",
+        "sourceHandle": "message",
+        "target": "OpenAIModel-001",
+        "targetHandle": "input_value"
+      },
+      {
+        "id": "edge-llm-to-output",
+        "source": "OpenAIModel-001",
+        "sourceHandle": "text",
+        "target": "ChatOutput-001",
+        "targetHandle": "input_value"
+      },
+      {
+        "id": "edge-llm-to-feedback",
+        "source": "OpenAIModel-001",
+        "sourceHandle": "text",
+        "target": "HTTPRequest-feedback",
+        "targetHandle": "body"
+      }
+    ],
+
+    "viewport": { "zoom": 0.8, "x": 0, "y": 0 }
+  },
+
+  "style": { "node_colors": {}, "edge_colors": {} },
+  "is_component": false,
+  "last_tested_version": "1.0",
+  "variables": [
+    {
+      "name": "LANGFLOW_VIRTUAL_KEY",
+      "type": "str",
+      "value": "sk-autonomyx-langflow-prod",
+      "description": "LiteLLM virtual key — create via /key/generate with appropriate budget"
+    },
+    {
+      "name": "GATEWAY_URL",
+      "type": "str",
+      "value": "http://litellm:4000",
+      "description": "Internal gateway URL (use https://llm.openautonomyx.com for external)"
+    }
+  ]
+}

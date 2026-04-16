@@ -225,7 +225,7 @@ Read `references/lago-integration.md` in full. Produce:
 Before declaring done, verify every item is produced:
 
 - [ ] `config.yaml` — model list, routing, fallbacks, budgets, Lago callback registered, Qwen3-30B-A3B + Qwen2.5-Coder-32B + Qwen2.5-14B always-on entries
-- [ ] `docker-compose.yml` — full stack: LiteLLM + Postgres + Prometheus + Grafana + Lago (api/worker/clock/front/db/redis) + Mailserver + Keycloak (server/db) + Langfuse (server/db/redis) + Ollama + Classifier + Translator. Coolify variant: Traefik labels + coolify network. Generic variant: exposed ports.
+- [ ] `docker-compose.yml` — full stack: LiteLLM + Postgres + Prometheus + Grafana + Lago (api/worker/clock/front/db/redis) + Mailserver + Keycloak (server/db) + Langfuse (server/db/redis) + Ollama + Classifier + Translator + Langflow (server/db). Coolify variant: Traefik labels + coolify network. Generic variant: exposed ports.
 - [ ] `prometheus.yml`
 - [ ] `.env.example` — all providers + Lago vars, no real keys
 - [ ] `lago_callback.py` — custom success callback
@@ -247,6 +247,9 @@ Before declaring done, verify every item is produced:
 - [ ] `recommender.py` produced — FastAPI router mounted on LiteLLM
 - [ ] `model_registry.json` produced — all gateway models with cost/capability/quality
 - [ ] `/recommend` endpoint documented with request/response example
+- [ ] Langflow service in docker-compose — wired to gateway via OPENAI_API_BASE
+- [ ] `flows/gateway-agent.json` — importable flow template in repo
+- [ ] Langflow env vars in `.env.example`
 - [ ] Langflow + autonomyx-mcp wiring for recommender provided
 - [ ] `classifier/Dockerfile` produced
 - [ ] `classifier/classifier_server.py` produced — sentence-transformers + LogisticRegression

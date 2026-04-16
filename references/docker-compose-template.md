@@ -17,6 +17,8 @@ volumes:
   litellm-db-data:
   prometheus-data:
   grafana-data:
+  langflow-data:
+  langflow-db-data:
 
 services:
 
@@ -112,6 +114,57 @@ services:
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     depends_on:
       - prometheus
+
+  # ── Langflow ──────────────────────────────────────────────────────────────
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: autonomyx-langflow
+    restart: always
+    networks:
+      - coolify
+    depends_on:
+      langflow-db:
+        condition: service_healthy
+    environment:
+      - LANGFLOW_DATABASE_URL=postgresql://langflow:${LANGFLOW_DB_PASSWORD}@langflow-db:5432/langflow
+      - LANGFLOW_SECRET_KEY=${LANGFLOW_SECRET_KEY}
+      - LANGFLOW_SUPERUSER=${LANGFLOW_ADMIN_EMAIL}
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_ADMIN_PASSWORD}
+      - LANGFLOW_AUTO_LOGIN=false
+      # Wire to gateway — all Langflow LLM components use the gateway
+      - OPENAI_API_BASE=http://litellm:4000/v1
+      - OPENAI_API_KEY=${LANGFLOW_VIRTUAL_KEY}
+      - LANGFLOW_LANGCHAIN_CACHE=InMemoryCache
+      - LANGFLOW_STORE=false                    # disable Langflow store (use local only)
+      - LANGFLOW_TELEMETRY_ENABLED=false
+      - LANGFLOW_LOG_LEVEL=warning
+    volumes:
+      - langflow-data:/app/langflow
+      - ./flows:/app/flows:ro                   # pre-load flow templates on startup
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.langflow.rule=Host(`flows.openautonomyx.com`)"
+      - "traefik.http.routers.langflow.entrypoints=https"
+      - "traefik.http.routers.langflow.tls.certresolver=letsencrypt"
+      - "traefik.http.services.langflow.loadbalancer.server.port=7860"
+
+  langflow-db:
+    image: postgres:15-alpine
+    container_name: autonomyx-langflow-db
+    restart: always
+    networks:
+      - coolify
+    environment:
+      - POSTGRES_USER=langflow
+      - POSTGRES_PASSWORD=${LANGFLOW_DB_PASSWORD}
+      - POSTGRES_DB=langflow
+    volumes:
+      - langflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 ```
 
 ---
@@ -125,6 +178,8 @@ volumes:
   litellm-db-data:
   prometheus-data:
   grafana-data:
+  langflow-data:
+  langflow-db-data:
 
 services:
 
@@ -204,4 +259,47 @@ services:
       - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
+
+  # ── Langflow ──────────────────────────────────────────────────────────────
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: autonomyx-langflow
+    restart: always
+    ports:
+      - "7860:7860"
+    depends_on:
+      langflow-db:
+        condition: service_healthy
+    environment:
+      - LANGFLOW_DATABASE_URL=postgresql://langflow:${LANGFLOW_DB_PASSWORD}@langflow-db:5432/langflow
+      - LANGFLOW_SECRET_KEY=${LANGFLOW_SECRET_KEY}
+      - LANGFLOW_SUPERUSER=${LANGFLOW_ADMIN_EMAIL}
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_ADMIN_PASSWORD}
+      - LANGFLOW_AUTO_LOGIN=false
+      - OPENAI_API_BASE=http://litellm:4000/v1
+      - OPENAI_API_KEY=${LANGFLOW_VIRTUAL_KEY}
+      - LANGFLOW_STORE=false
+      - LANGFLOW_TELEMETRY_ENABLED=false
+      - LANGFLOW_LOG_LEVEL=warning
+    volumes:
+      - langflow-data:/app/langflow
+      - ./flows:/app/flows:ro
+
+  langflow-db:
+    image: postgres:15-alpine
+    container_name: autonomyx-langflow-db
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=langflow
+      - POSTGRES_PASSWORD=${LANGFLOW_DB_PASSWORD}
+      - POSTGRES_DB=langflow
+    volumes:
+      - langflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 ```

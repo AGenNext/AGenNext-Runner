@@ -197,3 +197,13 @@ KC_BASE_URL=https://auth.openautonomyx.com
 # LAGO_API_URL=http://10.0.0.2:3001
 # KC_BASE_URL=http://10.0.0.2:8080
 ```
+
+## Langflow
+```
+LANGFLOW_DB_PASSWORD=YOUR_LANGFLOW_DB_PASSWORD
+LANGFLOW_SECRET_KEY=YOUR_32_CHAR_SECRET        # openssl rand -hex 32
+LANGFLOW_ADMIN_EMAIL=admin@openautonomyx.com
+LANGFLOW_ADMIN_PASSWORD=YOUR_LANGFLOW_PASSWORD
+# Virtual key scoped for Langflow — create via /key/generate
+LANGFLOW_VIRTUAL_KEY=sk-autonomyx-langflow-prod
+```
