@@ -242,3 +242,66 @@ class TestOCICompliance:
             content = open(path).read()
             assert "MIT" in content, \
                 f"Missing or wrong license in {dockerfile}"
+
+
+class TestSurrealDBSelfHosted:
+
+    def test_surrealdb_service_in_compose(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        assert "surrealdb" in c["services"]
+
+    def test_surrealdb_image_pinned(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        image = c["services"]["surrealdb"]["image"]
+        assert "latest" not in image
+        assert "surrealdb/surrealdb:v" in image
+
+    def test_surrealdb_uses_rocksdb(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        cmd = " ".join(c["services"]["surrealdb"].get("command", []))
+        assert "rocksdb" in cmd
+
+    def test_surrealdb_has_volume(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        vols = c["services"]["surrealdb"].get("volumes", [])
+        assert any("surrealdb-data" in str(v) for v in vols)
+
+    def test_surrealdb_internal_only(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        labels = c["services"]["surrealdb"].get("labels", [])
+        assert any("traefik.enable=false" in str(l) for l in labels)
+
+    def test_surrealdb_has_healthcheck(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        assert "healthcheck" in c["services"]["surrealdb"]
+
+    def test_surrealdb_volume_declared(self):
+        import yaml
+        c = yaml.safe_load(open("docker-compose.yml"))
+        assert "surrealdb-data" in c["volumes"]
+
+    def test_surreal_env_vars_in_example(self):
+        content = open(".env.example").read()
+        assert "SURREAL_USER" in content
+        assert "SURREAL_PASS" in content
+        assert "SURREAL_URL" in content
+
+    def test_migration_script_exists(self):
+        import os
+        assert os.path.exists("scripts/migrate_surrealdb.sh")
+
+    def test_migration_script_has_all_steps(self):
+        content = open("scripts/migrate_surrealdb.sh").read()
+        assert "Step 1" in content  # health check
+        assert "Step 2" in content  # export from cloud
+        assert "Step 3" in content  # import to self-hosted
+        assert "Step 4" in content  # verify record counts
+        assert "Step 5" in content  # update SURREAL_URL
+        assert "/export" in content
+        assert "/import" in content

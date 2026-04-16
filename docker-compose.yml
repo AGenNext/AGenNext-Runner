@@ -13,6 +13,7 @@ volumes:
   langflow-data:
   langflow-db-data:
   ollama-data:
+  surrealdb-data:
   openfga-db-data:
   glitchtip-db-data:
   glitchtip-uploads:
@@ -241,6 +242,30 @@ services:
 
 
 
+
+
+  # ── SurrealDB (self-hosted — agent memory, vector store, schema DB) ───────
+  surrealdb:
+    image: surrealdb/surrealdb:v2.3.6
+    container_name: autonomyx-surrealdb
+    restart: always
+    networks:
+      - coolify
+    command:
+      - start
+      - --log=warn
+      - --user=${SURREAL_USER}
+      - --pass=${SURREAL_PASS}
+      - rocksdb:/data/surreal.db
+    volumes:
+      - surrealdb-data:/data
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--conn", "http://localhost:8000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "traefik.enable=false"   # internal only
 
   # ── Trust Centre (trust.openautonomyx.com) ───────────────────────────────
   trust:
