@@ -1,0 +1,55 @@
+# frp/frpc.toml — frpc client configuration
+# Mounted into the frpc Docker container at /etc/frp/frpc.toml
+# frps runs on the same host as a systemd service
+# frpc connects to frps via host network (host.docker.internal or 172.17.0.1)
+#
+# Each [[proxies]] block exposes one internal Docker service
+# via frps as a virtual HTTP host on the public domain.
+#
+# Flow:
+#   Browser → nginx (TLS) → frps (port 80) → frpc → container:port
+
+serverAddr = "host-gateway"   # Docker special hostname for host network
+serverPort = 7000
+
+auth.method = "token"
+auth.token  = "{{ FRP_TOKEN }}"   # replaced by bootstrap_server.sh / CI inject
+
+# ── Internal tools (protected by nginx basic auth — see nginx/auth.conf) ─────
+
+[[proxies]]
+name       = "dockge"
+type       = "http"
+localIP    = "dockge"
+localPort  = 5001
+subdomain  = "dockge"
+
+[[proxies]]
+name       = "grafana"
+type       = "http"
+localIP    = "grafana"
+localPort  = 3000
+subdomain  = "metrics"
+
+[[proxies]]
+name       = "glitchtip"
+type       = "http"
+localIP    = "glitchtip"
+localPort  = 8080
+subdomain  = "errors"
+
+[[proxies]]
+name       = "langflow"
+type       = "http"
+localIP    = "langflow"
+localPort  = 7860
+subdomain  = "flows"
+
+# ── Public services (no auth) ─────────────────────────────────────────────────
+
+[[proxies]]
+name       = "trust"
+type       = "http"
+localIP    = "trust"
+localPort  = 80
+subdomain  = "trust"

@@ -138,6 +138,62 @@ if [ "$TOTAL_RAM" -lt 8192 ] && [ ! -f /swapfile ]; then
   echo "  2GB swap created"
 fi
 
+# frp — install frps as systemd service
+echo "→ Installing frps (Fast Reverse Proxy server)..."
+FRP_VERSION="0.62.0"
+FRP_ARCHIVE="frp_${FRP_VERSION}_linux_amd64.tar.gz"
+FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/${FRP_ARCHIVE}"
+
+if ! command -v frps &>/dev/null; then
+  cd /tmp
+  curl -fsSL "$FRP_URL" -o "$FRP_ARCHIVE"
+  tar -xzf "$FRP_ARCHIVE"
+  cp "frp_${FRP_VERSION}_linux_amd64/frps" /usr/local/bin/frps
+  chmod +x /usr/local/bin/frps
+  rm -rf "frp_${FRP_VERSION}_linux_amd64" "$FRP_ARCHIVE"
+  cd -
+  echo "  frps installed: $(frps --version)"
+else
+  echo "  frps already installed: $(frps --version)"
+fi
+
+# Write frps config from template
+mkdir -p /etc/frp
+FRP_TOKEN="${FRP_TOKEN:-$(openssl rand -hex 32)}"
+
+# Save token to .env if not already there
+if ! grep -q "^FRP_TOKEN=" "$DEPLOY_DIR/.env" 2>/dev/null; then
+  echo "FRP_TOKEN=${FRP_TOKEN}" >> "$DEPLOY_DIR/.env"
+fi
+
+# Write frps.toml with token substituted
+sed "s|{{ FRP_TOKEN }}|${FRP_TOKEN}|g"   "$DEPLOY_DIR/frp/frps.toml" > /etc/frp/frps.toml
+
+# Write frpc.toml with token substituted
+sed "s|{{ FRP_TOKEN }}|${FRP_TOKEN}|g"   "$DEPLOY_DIR/frp/frpc.toml" > "$DEPLOY_DIR/frp/frpc.rendered.toml"
+
+# Install frps systemd service
+cat > /etc/systemd/system/frps.service << 'SVCEOF'
+[Unit]
+Description=frps - Fast Reverse Proxy Server
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5s
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable frps
+systemctl restart frps
+echo "  frps systemd service running"
+
 # Write marker — bootstrap complete
 touch "$MARKER"
 echo "=== Server bootstrap complete ==="

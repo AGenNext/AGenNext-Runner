@@ -270,23 +270,19 @@ services:
 
 
 
-  # ── Newt (Pangolin tunnel client — open source Cloudflare Tunnel alternative)
-  # Connects to Pangolin server via WireGuard tunnel
-  # Pangolin handles: SSL (Let's Encrypt), routing, auth, access control
-  # No dashboard login required — fully config-file driven
-  # Docs: https://github.com/fosrl/pangolin
-  newt:
-    image: fosrl/newt:latest
-    container_name: autonomyx-newt
+  # ── frpc (Fast Reverse Proxy client — Apache 2.0, no cloud, no vendor lock-in)
+  # Connects to frps server running as systemd service on same host
+  # frps installed by bootstrap_server.sh, config at /etc/frp/frps.toml
+  # frpc config mounted from ./frp/frpc.toml
+  # Docs: https://github.com/fatedier/frp
+  frpc:
+    image: snowdreamtech/frpc:0.62.0
+    container_name: autonomyx-frpc
     restart: always
     networks:
       - coolify
-    environment:
-      - PANGOLIN_ENDPOINT=${PANGOLIN_ENDPOINT}
-      - NEWT_ID=${NEWT_ID}
-      - NEWT_SECRET=${NEWT_SECRET}
-    cap_add:
-      - NET_ADMIN    # needed for WireGuard tunnel setup
+    volumes:
+      - ./frp/frpc.toml:/etc/frp/frpc.toml:ro
     labels:
       - "traefik.enable=false"
 
