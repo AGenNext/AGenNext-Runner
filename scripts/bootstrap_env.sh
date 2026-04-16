@@ -166,8 +166,8 @@ else
   echo "     ./scripts/migrate_surrealdb.sh"
 fi
 echo "══════════════════════════════════════════════════════════"
-# Infisical
-generate_if_missing "INFISICAL_ENCRYPTION_KEY" "$(openssl rand -hex 16)"
-generate_if_missing "INFISICAL_AUTH_SECRET"    "$(openssl rand -base64 32)"
-generate_if_missing "INFISICAL_DB_PASSWORD"    "$(openssl rand -hex 32)"
-generate_if_missing "PGADMIN_PASSWORD" "$(openssl rand -hex 16)"
+# Infisical + pgAdmin (fix: was calling nonexistent generate_if_missing)
+write_key "INFISICAL_ENCRYPTION_KEY" "$(openssl rand -hex 16)"         "hex 32"
+write_key "INFISICAL_AUTH_SECRET"    "$(openssl rand -base64 32)"      "base64 32"
+write_key "INFISICAL_DB_PASSWORD"    "$(openssl rand -hex 32)"         "hex 64"
+write_key "PGADMIN_PASSWORD"         "$(openssl rand -hex 16)"         "hex 32"
