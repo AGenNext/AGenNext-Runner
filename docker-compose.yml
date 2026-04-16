@@ -161,23 +161,20 @@ services:
     networks:
       - coolify
     environment:
-      - DO_NOT_TRACK=true                     # disable telemetry (flow runs, env, components)
-      - LANGFLOW_TELEMETRY_ENABLED=false       # belt + suspenders
-      - LANGFLOW_AUTO_LOGIN=false              # disable auto-login for security
-    depends_on:
-      langflow-db:
-        condition: service_healthy
-    environment:
+      - DO_NOT_TRACK=true
+      - LANGFLOW_TELEMETRY_ENABLED=false
+      - LANGFLOW_AUTO_LOGIN=false
       - LANGFLOW_DATABASE_URL=postgresql://langflow:${LANGFLOW_DB_PASSWORD}@langflow-db:5432/langflow
       - LANGFLOW_SECRET_KEY=${LANGFLOW_SECRET_KEY}
       - LANGFLOW_SUPERUSER=${LANGFLOW_ADMIN_EMAIL:-admin@openautonomyx.com}
       - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_ADMIN_PASSWORD}
-      - LANGFLOW_AUTO_LOGIN=false
       - OPENAI_API_BASE=http://litellm:4000/v1
       - OPENAI_API_KEY=${LANGFLOW_VIRTUAL_KEY}
       - LANGFLOW_STORE=false
-      - LANGFLOW_TELEMETRY_ENABLED=false
       - LANGFLOW_LOG_LEVEL=warning
+    depends_on:
+      langflow-db:
+        condition: service_healthy
     volumes:
       - langflow-data:/app/langflow
       - ./flows:/app/flows:ro
