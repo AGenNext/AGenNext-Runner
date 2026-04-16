@@ -269,6 +269,25 @@ services:
       - "traefik.enable=false"   # internal only
 
 
+
+  # ── Cloudflare Tunnel (zero-trust ingress — no open ports needed) ─────────
+  # One tunnel → routes all internal services to public subdomains
+  # Configured via Cloudflare Zero Trust dashboard:
+  #   one.dash.cloudflare.com → Networks → Tunnels
+  # Each public hostname maps to an internal container:service:port
+  # Zero Trust Access policies sit in front of each hostname
+  cloudflared:
+    image: cloudflare/cloudflared:2025.4.0
+    container_name: autonomyx-cloudflared
+    restart: always
+    networks:
+      - coolify
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    labels:
+      - "traefik.enable=false"
+
   # ── Dockge (Docker Compose stack manager UI) ─────────────────────────────
   dockge:
     image: louislam/dockge:1
@@ -284,14 +303,7 @@ services:
     environment:
       - DOCKGE_STACKS_DIR=/home/ubuntu
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dockge.rule=Host(`dockge.openautonomyx.com`)"
-      - "traefik.http.routers.dockge.entrypoints=https"
-      - "traefik.http.routers.dockge.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dockge.loadbalancer.server.port=5001"
-      # Restrict to internal network — Dockge has docker.sock access
-      - "traefik.http.routers.dockge.middlewares=dockge-ipallow"
-      - "traefik.http.middlewares.dockge-ipallow.ipallowlist.sourcerange=127.0.0.1/32,${ALLOWED_IPS:-0.0.0.0/0}"
+      - "traefik.enable=false"   # Cloudflare Tunnel handles routing
 
   # ── Trust Centre (trust.openautonomyx.com) ───────────────────────────────
   trust:

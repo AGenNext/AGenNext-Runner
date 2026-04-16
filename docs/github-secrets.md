@@ -147,3 +147,9 @@ no SSH key management needed in CI at all:
     virtual-machine: ${{ vars.HOSTINGER_VM_ID }}
     docker-compose-path: docker-compose.yml
 ```
+
+### Cloudflare Tunnel
+
+| Secret | Description | Where to get |
+|---|---|---|
+| `CLOUDFLARE_TUNNEL_TOKEN` | Cloudflare Tunnel token | one.dash.cloudflare.com → Networks → Tunnels → Create tunnel → Docker → copy token |
