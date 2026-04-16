@@ -91,7 +91,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./frpc
-          dockerfile: ./frpc/Dockerfile
+          file: ./frpc/Dockerfile
           push: true
           tags: |
             ${{ env.ORG }}/autonomyx-frpc:0.62.0
@@ -102,15 +102,15 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/fatedier/frp
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache
+          cache-to: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache,mode=max
           platforms: linux/amd64
 
       - name: Build & push playwright
         uses: docker/build-push-action@v5
         with:
           context: ./playwright
-          dockerfile: ./playwright/Dockerfile
+          file: ./playwright/Dockerfile
           push: true
           tags: |
             ${{ env.ORG }}/autonomyx-playwright:${{ steps.meta.outputs.version }}
@@ -119,15 +119,15 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache
+          cache-to: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache,mode=max
           platforms: linux/amd64
 
       - name: Build & push classifier
         uses: docker/build-push-action@v5
         with:
           context: ./classifier
-          dockerfile: ./classifier/Dockerfile
+          file: ./classifier/Dockerfile
           push: true
           tags: |
             ${{ env.ORG }}/autonomyx-classifier:${{ steps.meta.outputs.version }}
@@ -136,15 +136,15 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache
+          cache-to: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache,mode=max
           platforms: linux/amd64
 
       - name: Build & push translator
         uses: docker/build-push-action@v5
         with:
           context: ./translator
-          dockerfile: ./translator/Dockerfile
+          file: ./translator/Dockerfile
           push: true
           tags: |
             ${{ env.ORG }}/autonomyx-translator:${{ steps.meta.outputs.version }}
@@ -153,8 +153,8 @@ jobs:
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ steps.meta.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache
+          cache-to: type=registry,ref=${{ env.ORG }}/autonomyx-cache:buildcache,mode=max
           platforms: linux/amd64
 
       - name: Docker Scout — scan all images for CVEs
