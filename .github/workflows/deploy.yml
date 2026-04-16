@@ -289,6 +289,10 @@ jobs:
 
             cd /home/ubuntu/autonomyx-model-gateway
 
+            echo "=== Pulling latest code (BEFORE running any scripts) ==="
+            git fetch origin main
+            git reset --hard origin/main
+
             echo "=== Bootstrapping generated secrets ==="
             chmod +x scripts/bootstrap_env.sh
             bash scripts/bootstrap_env.sh
@@ -310,10 +314,6 @@ jobs:
               exit 1
             fi
             echo "All required env vars present"
-
-            echo "=== Pulling latest code ==="
-            git fetch origin main
-            git reset --hard origin/main
 
             echo "=== Removing obsolete version attribute ==="
             sed -i '/^version:/d' docker-compose.yml
