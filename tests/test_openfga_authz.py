@@ -248,7 +248,7 @@ class TestDockerComposeOpenFGA:
         compose = yaml.safe_load(open(path))
         services = compose.get("services", {})
         assert "openfga" in services
-        assert "openfga-db" in services
+        assert "postgres" in services
 
     def test_openfga_image_pinned(self):
         import yaml

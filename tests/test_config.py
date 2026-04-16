@@ -84,7 +84,7 @@ class TestDockerCompose:
 
     def test_required_services_present(self):
         services = self.compose.get("services", {})
-        required = ["litellm", "litellm-db", "ollama", "prometheus", "grafana", "langflow"]
+        required = ["litellm", "postgres", "ollama", "prometheus", "grafana", "langflow"]
         for svc in required:
             assert svc in services, f"Required service missing: {svc}"
 
@@ -117,7 +117,7 @@ class TestDockerCompose:
     def test_volumes_defined(self):
         volumes = self.compose.get("volumes", {})
         assert "ollama-data" in volumes
-        assert "litellm-db-data" in volumes
+        assert "postgres-data" in volumes
         assert "langflow-data" in volumes
 
 
@@ -159,7 +159,7 @@ class TestGlitchTip:
 
     def test_glitchtip_services_present(self):
         services = self.compose.get("services", {})
-        for svc in ["glitchtip", "glitchtip-worker", "glitchtip-db", "glitchtip-redis"]:
+        for svc in ["glitchtip", "glitchtip-worker", "postgres", "glitchtip-redis"]:
             assert svc in services, f"Missing GlitchTip service: {svc}"
 
     def test_glitchtip_version_pinned(self):
@@ -178,7 +178,7 @@ class TestGlitchTip:
         assert "errors.openautonomyx.com" in label_str
 
     def test_glitchtip_db_health_check(self):
-        db = self.compose["services"]["glitchtip-db"]
+        db = self.compose["services"]["postgres"]
         assert "healthcheck" in db
 
     def test_glitchtip_redis_health_check(self):
@@ -187,7 +187,7 @@ class TestGlitchTip:
 
     def test_glitchtip_volumes_defined(self):
         volumes = self.compose.get("volumes", {})
-        assert "glitchtip-db-data" in volumes
+        assert "postgres-data" in volumes
         assert "glitchtip-uploads" in volumes
 
     def test_glitchtip_env_vars_in_example(self):
