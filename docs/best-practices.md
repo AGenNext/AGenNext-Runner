@@ -85,6 +85,18 @@ RUN playwright install chromium --with-deps  # ← exit code 1 in GitHub Actions
 FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
 ```
 
+### Never install packages from git URLs in Dockerfiles
+
+```dockerfile
+# WRONG — unreliable in CI, breaks on network issues/rate limits
+RUN pip install git+https://github.com/org/package.git
+
+# RIGHT — pinned PyPI release, reproducible, cacheable
+RUN pip install IndicTransToolkit==1.1.1
+```
+
+**Rule:** Always use PyPI releases. If a package is not on PyPI, vendor it into the repo or pin a specific commit SHA. Never use a branch name.
+
 **Rule:** If a tool has an official Docker image, use it as the base. Never reinstall what the official image already provides.
 
 ### Never use heredocs for Python in Dockerfiles
@@ -338,6 +350,7 @@ Before adding any new service to `docker-compose.yml`:
 | Apr 16 2026 | Translator Dockerfile heredoc error | Python code inside `RUN python3 -c "..."` multi-line block parsed as Dockerfile instructions | Collapsed to single line | hadolint in CI catches unknown instructions |
 | Apr 16 2026 | Playwright `--with-deps` failure in CI | GitHub Actions runners don't have apt access needed for system browser deps | Switched to `mcr.microsoft.com/playwright/python:v1.49.0-noble` | hadolint + `scripts/build-test.sh` |
 | Apr 16 2026 | Manual file edits on server conflicted with git pull | `docker-compose.yml` edited manually on server, then CI tried to pull | `git reset --hard origin/main` in deploy script | Policy: never manually edit files on server |
+| Apr 16 2026 | IndicTransToolkit git install fails in CI | `git+https://` installs are unreliable in CI — network restrictions, rate limits | Switched to `IndicTransToolkit==1.1.1` from PyPI | Rule: never use `git+https://` in Dockerfiles — always use PyPI releases |
 | Apr 16 2026 | CI ran old commit instead of latest | Workflow manually triggered on stale commit | Trigger on latest main | Always use "Run workflow" on branch `main`, not a specific commit |
 | Apr 16 2026 | Deploy ran before build gate existed | Single-job pipeline, no test/build separation | Split into 3 jobs with `needs:` dependencies | Current pipeline enforces: test → build → deploy |
 
