@@ -428,6 +428,49 @@ jobs:
             fi
 
             echo "=== Final service status ==="
+
+            echo "=== Syncing nginx configs ==="
+            sudo cp /home/ubuntu/autonomyx-model-gateway/nginx/*.conf /etc/nginx/sites-available/ 2>/dev/null || true
+            for conf in /etc/nginx/sites-available/llm.conf /etc/nginx/sites-available/flows.conf /etc/nginx/sites-available/metrics.conf /etc/nginx/sites-available/errors.conf /etc/nginx/sites-available/trust.conf /etc/nginx/sites-available/dockge.conf /etc/nginx/sites-available/db.conf; do
+              if [ -f "$conf" ]; then
+                name=$(basename "$conf")
+                sudo ln -sf "$conf" /etc/nginx/sites-enabled/"$name" 2>/dev/null || true
+              fi
+            done
+            sudo nginx -t && sudo systemctl reload nginx || echo "nginx reload failed"
+
+            echo "=== TLS certificates ==="
+            for domain in llm flows metrics errors trust dockge db; do
+              if ! sudo test -d /etc/letsencrypt/live/${domain}.openautonomyx.com; then
+                sudo certbot --nginx -d ${domain}.openautonomyx.com --non-interactive --agree-tos -m chinmay@openautonomyx.com 2>/dev/null || echo "certbot failed for ${domain}"
+              fi
+            done
+
+            echo "=== Smoke tests ==="
+            PASS=0
+            FAIL=0
+            for endpoint in "http://127.0.0.1:4000/health:401" "http://127.0.0.1:7860:200" "http://127.0.0.1:3000/api/health:200" "http://127.0.0.1:8080:200"; do
+              url="${endpoint%:*}"
+              url="${url%:*}:${endpoint##*:}"
+              expected="${endpoint##*:}"
+              # Simpler: just check if port responds
+              url2=$(echo "$endpoint" | rev | cut -d: -f2- | rev)
+              exp=$(echo "$endpoint" | rev | cut -d: -f1 | rev)
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$url2" 2>/dev/null || echo "000")
+              if [ "$code" = "$exp" ]; then
+                echo "  PASS: $url2 -> $code"
+                PASS=$((PASS+1))
+              else
+                echo "  FAIL: $url2 -> $code (expected $exp)"
+                FAIL=$((FAIL+1))
+              fi
+            done
+            echo "Smoke: $PASS passed, $FAIL failed"
+
+            echo "=== Hardening ==="
+            sudo ufw status | head -5
+            docker compose ps --format "table {{.Name}}\t{{.State}}" | grep -c running || true
+            echo "Deploy complete"
             docker compose ps
 
             echo "=== Deploy complete ==="
