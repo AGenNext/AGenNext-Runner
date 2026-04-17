@@ -1,0 +1,202 @@
+# docker-compose.secondary.yml
+# Business logic + sellable services (48GB secondary VPS)
+# Deploy: docker compose -f docker-compose.secondary.yml up -d
+
+networks:
+  secondary:
+    driver: bridge
+
+volumes:
+  postgres-secondary-data:
+  langfuse-data:
+  lago-db-data:
+  matomo-db-data:
+  matomo-data:
+  keystone-data:
+  mailserver-data:
+  valkey-data:
+
+services:
+
+  # ── Shared Postgres (Langfuse, Lago, Keycloak, Keystone DBs) ─────────────
+  postgres:
+    image: postgres:15.7-alpine
+    container_name: secondary-postgres
+    restart: always
+    networks: [secondary]
+    environment:
+      - POSTGRES_USER=autonomyx
+      - POSTGRES_PASSWORD=${POSTGRES_ROOT_PASSWORD}
+      - POSTGRES_DB=postgres
+      - LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}
+      - LAGO_DB_PASSWORD=${LAGO_DB_PASSWORD}
+      - KEYCLOAK_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD}
+      - KEYSTONE_DB_PASSWORD=${KEYSTONE_DB_PASSWORD}
+    volumes:
+      - postgres-secondary-data:/var/lib/postgresql/data
+      - ./postgres/init-secondary.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autonomyx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Langfuse (LLM observability) ─────────────────────────────────────────
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: secondary-langfuse
+    restart: always
+    networks: [secondary]
+    ports: ["127.0.0.1:3100:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD}@postgres:5432/langfuse
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}
+      - SALT=${LANGFUSE_SALT}
+      - NEXTAUTH_URL=https://traces.openautonomyx.com
+      - TELEMETRY_ENABLED=false
+
+  # ── Keycloak (auth + tenant management) ──────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: secondary-keycloak
+    restart: always
+    networks: [secondary]
+    ports: ["127.0.0.1:8180:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    command: start --hostname=auth.openautonomyx.com --db=postgres
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+      - KC_DB_USERNAME=keycloak
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD}
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HTTP_ENABLED=true
+
+  # ── Lago (billing) ──────────────────────────────────────────────────────
+  lago-api:
+    image: getlago/api:v1.25.0
+    container_name: secondary-lago-api
+    restart: always
+    networks: [secondary]
+    ports: ["127.0.0.1:3200:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      lago-redis: { condition: service_healthy }
+    environment:
+      - RAILS_ENV=production
+      - DATABASE_URL=postgresql://lago:${LAGO_DB_PASSWORD}@postgres:5432/lago
+      - REDIS_URL=redis://lago-redis:6379
+      - LAGO_API_URL=https://billing.openautonomyx.com
+      - SECRET_KEY_BASE=${LAGO_SECRET_KEY_BASE}
+      - ENCRYPTION_PRIMARY_KEY=${LAGO_ENCRYPTION_PRIMARY_KEY}
+      - ENCRYPTION_DETERMINISTIC_KEY=${LAGO_ENCRYPTION_DETERMINISTIC_KEY}
+      - ENCRYPTION_KEY_DERIVATION_SALT=${LAGO_ENCRYPTION_KEY_DERIVATION_SALT}
+      - LAGO_FRONT_URL=https://billing-ui.openautonomyx.com
+      - LAGO_SMTP_ADDRESS=localhost
+      - LAGO_SMTP_PORT=25
+      - LAGO_FROM_EMAIL=billing@openautonomyx.com
+
+  lago-worker:
+    image: getlago/api:v1.25.0
+    container_name: secondary-lago-worker
+    restart: always
+    networks: [secondary]
+    depends_on: [lago-api]
+    command: ["./scripts/start.worker.sh"]
+    environment:
+      - RAILS_ENV=production
+      - DATABASE_URL=postgresql://lago:${LAGO_DB_PASSWORD}@postgres:5432/lago
+      - REDIS_URL=redis://lago-redis:6379
+      - SECRET_KEY_BASE=${LAGO_SECRET_KEY_BASE}
+
+  lago-front:
+    image: getlago/front:v1.25.0
+    container_name: secondary-lago-front
+    restart: always
+    networks: [secondary]
+    ports: ["127.0.0.1:3201:80"]
+    environment:
+      - API_URL=https://billing.openautonomyx.com
+      - LAGO_DISABLE_SIGNUP=true
+
+  lago-redis:
+    image: valkey/valkey:8.1-alpine
+    container_name: secondary-lago-redis
+    restart: always
+    networks: [secondary]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Mailserver ──────────────────────────────────────────────────────────
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:latest
+    container_name: secondary-mailserver
+    restart: always
+    networks: [secondary]
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+    volumes:
+      - mailserver-data:/var/mail
+    environment:
+      - OVERRIDE_HOSTNAME=mail.openautonomyx.com
+      - POSTMASTER_ADDRESS=chinmay@openautonomyx.com
+
+  # ── Matomo (analytics — sellable service) ────────────────────────────────
+  matomo:
+    image: matomo:5-apache
+    container_name: secondary-matomo
+    restart: always
+    networks: [secondary]
+    ports: ["127.0.0.1:8280:80"]
+    depends_on: [matomo-db]
+    volumes:
+      - matomo-data:/var/www/html
+    environment:
+      - MATOMO_DATABASE_HOST=matomo-db
+      - MATOMO_DATABASE_ADAPTER=mysql
+      - MATOMO_DATABASE_DBNAME=matomo
+      - MATOMO_DATABASE_USERNAME=matomo
+      - MATOMO_DATABASE_PASSWORD=${MATOMO_DB_PASSWORD}
+
+  matomo-db:
+    image: mariadb:11
+    container_name: secondary-matomo-db
+    restart: always
+    networks: [secondary]
+    volumes:
+      - matomo-db-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MATOMO_DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=matomo
+      - MYSQL_USER=matomo
+      - MYSQL_PASSWORD=${MATOMO_DB_PASSWORD}
+
+  # ── kc_lago_sync (Keycloak → Lago tenant provisioning) ──────────────────
+  kc-lago-sync:
+    image: python:3.12-slim
+    container_name: secondary-kc-lago-sync
+    restart: always
+    networks: [secondary]
+    working_dir: /app
+    volumes:
+      - ./kc_lago_sync.py:/app/kc_lago_sync.py:ro
+    command: ["python", "kc_lago_sync.py"]
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - LAGO_API_URL=http://lago-api:3000
+      - LAGO_API_KEY=${LAGO_API_KEY}
+      - LITELLM_URL=https://llm.openautonomyx.com
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
