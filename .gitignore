@@ -2,3 +2,4 @@ vertex_key.json
 .env
 __pycache__/
 tests/__pycache__/
+frp/frpc.rendered.toml
