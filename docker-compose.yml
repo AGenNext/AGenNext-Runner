@@ -57,6 +57,8 @@ services:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: autonomyx-litellm
     restart: always
+    ports:
+    - "127.0.0.1:4000:4000"
     networks:
     - coolify
     environment:
