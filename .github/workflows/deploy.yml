@@ -268,6 +268,12 @@ jobs:
 
             # Always run apt update + upgrade on deploy (security patches)
             export DEBIAN_FRONTEND=noninteractive
+            # Wait for apt lock (unattended-upgrades may be running)
+            for i in $(seq 1 12); do
+              sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+              echo "Waiting for apt lock ($i/12)..."
+              sleep 10
+            done
             sudo apt-get update -qq
             sudo apt-get upgrade -y -qq               -o Dpkg::Options::="--force-confdef"               -o Dpkg::Options::="--force-confold"
             sudo apt-get autoremove -y -qq
