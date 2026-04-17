@@ -30,7 +30,13 @@ router = APIRouter(prefix="/authz", tags=["Authorization"])
 OPENFGA_URL      = os.environ.get("OPENFGA_URL",      "http://openfga:8080")
 OPENFGA_STORE_ID = os.environ.get("OPENFGA_STORE_ID", "")
 OPENFGA_MODEL_ID = os.environ.get("OPENFGA_AUTH_MODEL_ID", "")
+OPENFGA_PSK      = os.environ.get("OPENFGA_PRESHARED_KEY", "")
 LITELLM_MASTER   = os.environ.get("LITELLM_MASTER_KEY", "")
+
+
+def _fga_headers() -> dict:
+    """Preshared-key bearer header for OpenFGA when configured."""
+    return {"Authorization": f"Bearer {OPENFGA_PSK}"} if OPENFGA_PSK else {}
 
 # Model alias → OpenFGA object name mapping
 MODEL_ALIAS_MAP = {
@@ -64,6 +70,7 @@ async def fga_check(user: str, relation: str, object_: str) -> bool:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.post(
                 f"{OPENFGA_URL}/stores/{OPENFGA_STORE_ID}/check",
+                headers=_fga_headers(),
                 json={
                     "tuple_key": {
                         "user":     user,
@@ -94,15 +101,19 @@ async def fga_write(tuples: list, delete: bool = False) -> bool:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
                 f"{OPENFGA_URL}/stores/{OPENFGA_STORE_ID}/write",
+                headers=_fga_headers(),
                 json={
-                    key: [
-                        {"tuple_key": t} for t in tuples
-                    ],
+                    key: {
+                        "tuple_keys": tuples,
+                    },
                     **({"authorization_model_id": OPENFGA_MODEL_ID}
                        if OPENFGA_MODEL_ID else {}),
                 },
             )
-            return r.status_code in (200, 204)
+            if r.status_code in (200, 204):
+                return True
+            log.error(f"OpenFGA write error {r.status_code}: {r.text}")
+            return False
     except Exception as e:
         log.error(f"OpenFGA write error: {e}")
         return False
@@ -110,23 +121,34 @@ async def fga_write(tuples: list, delete: bool = False) -> bool:
 
 # ── LiteLLM custom_auth callback ─────────────────────────────────────────────
 
-async def custom_auth(request) -> bool:
+async def custom_auth(request, api_key: str = ""):
     """
-    LiteLLM custom_auth hook — called before every LLM request.
-    Extracts agent identity from key metadata and checks OpenFGA.
+    LiteLLM custom_auth hook — called before every LLM request as
+    `user_custom_auth(request=request, api_key=api_key)`.
+
+    Must return a UserAPIKeyAuth on allow; raise HTTPException(403) on deny.
 
     Wire in config.yaml:
       general_settings:
         custom_auth: openfga_authz.custom_auth
     """
+    from litellm.proxy._types import UserAPIKeyAuth
+
     try:
-        metadata  = getattr(request, "metadata", {}) or {}
+        body: dict = {}
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        metadata   = (body.get("metadata") or {}) if isinstance(body, dict) else {}
         agent_name = metadata.get("agent_name")
-        model      = getattr(request, "model", None) or metadata.get("model")
+        model      = (body.get("model") if isinstance(body, dict) else None) \
+                     or metadata.get("model")
 
         # Non-agent requests (tenant users, admin) bypass agent checks
         if not agent_name:
-            return True
+            return UserAPIKeyAuth(api_key=api_key)
 
         agent_obj  = f"agent_identity:{agent_name}"
         model_obj  = MODEL_ALIAS_MAP.get(model, f"model:{model}")
@@ -140,7 +162,10 @@ async def custom_auth(request) -> bool:
         )
         if not model_allowed:
             log.warning(f"DENY: {agent_name} → {model} (model not in allowlist)")
-            return False
+            raise HTTPException(
+                status_code=403,
+                detail=f"agent '{agent_name}' not authorized for model '{model}'",
+            )
 
         # Check 2: agent belongs to the calling tenant
         if tenant_id:
@@ -151,14 +176,20 @@ async def custom_auth(request) -> bool:
             )
             if not tenant_allowed:
                 log.warning(f"DENY: {agent_name} not in tenant {tenant_id}")
-                return False
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"agent '{agent_name}' not in tenant '{tenant_id}'",
+                )
 
         log.info(f"ALLOW: {agent_name} → {model}")
-        return True
+        return UserAPIKeyAuth(api_key=api_key)
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.error(f"custom_auth error: {e}")
-        return False  # Fail closed
+        # Fail closed
+        raise HTTPException(status_code=403, detail="authorization check failed")
 
 
 # ── Admin API endpoints ───────────────────────────────────────────────────────
@@ -248,6 +279,7 @@ async def list_agent_models(
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
                 f"{OPENFGA_URL}/stores/{OPENFGA_STORE_ID}/list-objects",
+                headers=_fga_headers(),
                 json={
                     "user":      f"agent_identity:{agent_name}",
                     "relation":  "can_use_model",
@@ -276,12 +308,16 @@ async def grant_model_to_agent(
     model_name: str,
     authorization: Optional[str] = Header(None),
 ):
-    """Grant an agent access to a specific model."""
+    """Grant an agent access to a specific model.
+
+    Writes the same tuple shape that `custom_auth` checks at request time:
+    `(agent_identity:<name>, can_use_model, model:<alias>)`.
+    """
     _require_master(authorization)
     success = await fga_write([{
-        "user":     f"model:{model_name}",
-        "relation": "can_call_model",
-        "object":   f"agent_identity:{agent_name}",
+        "user":     f"agent_identity:{agent_name}",
+        "relation": "can_use_model",
+        "object":   f"model:{model_name}",
     }])
     if not success:
         raise HTTPException(status_code=502, detail="OpenFGA write failed")
@@ -297,9 +333,9 @@ async def revoke_model_from_agent(
     """Revoke an agent's access to a specific model."""
     _require_master(authorization)
     success = await fga_write([{
-        "user":     f"model:{model_name}",
-        "relation": "can_call_model",
-        "object":   f"agent_identity:{agent_name}",
+        "user":     f"agent_identity:{agent_name}",
+        "relation": "can_use_model",
+        "object":   f"model:{model_name}",
     }], delete=True)
     if not success:
         raise HTTPException(status_code=502, detail="OpenFGA delete failed")

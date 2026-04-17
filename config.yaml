@@ -257,9 +257,22 @@ router_settings:
 
 litellm_settings:
   drop_params: true
-  # Callbacks — Lago for billing, Langfuse for tracing
-  success_callback: ["lago_callback.LagoCallback"]
-  failure_callback: []
+  # Callbacks — Lago for billing, Langfuse for tracing, OPA for policy pre-call.
+  # "langfuse" is a built-in LiteLLM integration; it reads
+  # LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY/LANGFUSE_HOST from env and stays a
+  # no-op if the keys are missing (so this is safe to enable before the Langfuse
+  # UI has been used to mint a project key).
+  # LagoCallback goes in `callbacks` (unified CustomLogger list) rather than
+  # `success_callback`. The latter auto-routes to `_async_success_callback` only
+  # when `coroutine_checker.is_async_callable(instance)` is True — which returns
+  # False for regular Python objects (it inspects __call__, not methods). Under
+  # `callbacks`, LiteLLM's async_success_handler iterates the instance and
+  # invokes `async_log_success_event` directly.
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+  callbacks:
+  - opa_middleware.proxy_handler_instance
+  - lago_callback.proxy_handler_instance
   # Global budget guard (per-key limits set at key generation)
   max_budget: 100.0
   budget_duration: 30d
@@ -274,11 +287,10 @@ general_settings:
   ui_username: os.environ/LITELLM_UI_USERNAME
   ui_password: os.environ/LITELLM_UI_PASSWORD
   # Authorization — OpenFGA (WHO) + OPA (CONDITIONS)
-  # OpenFGA runs first: checks agent→model relationship and tenant ownership
-  # OPA runs second: checks budget, DPDP, local-first, expiry, TPM
-  # custom_auth: openfga_authz.custom_auth  # disabled — signature mismatch, fix later
-  callbacks:
-    # - opa_middleware.OPACallback  # disabled — needs custom_auth working first
+  # OpenFGA runs first via custom_auth: checks agent→model + tenant ownership.
+  # OPA runs second via litellm_settings.callbacks (OPACallback pre-call hook):
+  # checks budget, DPDP, local-first, expiry, TPM.
+  custom_auth: openfga_authz.custom_auth
 
   # Custom routers mounted on the same FastAPI process
   # additional_routers:  # disabled — modules crash on startup connecting to services

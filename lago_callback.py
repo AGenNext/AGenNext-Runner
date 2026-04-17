@@ -97,3 +97,10 @@ class LagoCallback(CustomLogger):
 
         except Exception as e:
             print(f"[LagoCallback] Async error: {e}")
+
+
+# Module-level instance — LiteLLM's callback loader uses getattr() so the
+# config.yaml entry must resolve to an INSTANCE, not the class. Referencing
+# the class yields unbound-method errors silently swallowed by the
+# log_success_event try/except, so events never leave this process.
+proxy_handler_instance = LagoCallback()

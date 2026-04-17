@@ -127,6 +127,13 @@ class OPACallback(CustomLogger):
             raise
 
 
+# Module-level instance — LiteLLM's `callbacks` loader resolves
+# `opa_middleware.proxy_handler_instance` via getattr and expects an INSTANCE,
+# not the class. Referencing the class leads to unbound-method errors when
+# LiteLLM later invokes hooks like async_post_call_success_hook on it.
+proxy_handler_instance = OPACallback()
+
+
 class PolicyEvalRequest(BaseModel):
     agent_name:           str
     agent_type:           str   = "workflow"
