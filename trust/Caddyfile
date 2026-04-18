@@ -1,6 +1,16 @@
 :80 {
-    root * /srv
-    file_server
+    # Serve landing page (llm.openautonomyx.com)
+    handle /trust* {
+        root * /srv/trust
+        file_server
+        try_files {path} {path}/index.html
+    }
+    handle {
+        root * /srv
+        file_server
+        try_files {path} {path}/index.html
+    }
+
     encode gzip
 
     # Security headers

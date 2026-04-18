@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support — Autonomyx Model Gateway</title>
+<meta name="description" content="Get help with Autonomyx Model Gateway. Documentation, troubleshooting, and contact options.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:   #001141;
+    --blue:   #1B5EBE;
+    --cyan:   #00CFFF;
+    --white:  #F8FAFF;
+    --ink:    #0A0E1A;
+    --muted:  #64748B;
+    --line:   rgba(0,17,65,0.08);
+    --serif:  'DM Serif Display', Georgia, serif;
+    --mono:   'DM Mono', monospace;
+    --sans:   'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--white);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0;
+    background: rgba(248,250,255,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    color: var(--navy);
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--blue); }
+
+  .header-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--blue);
+    border: 1px solid rgba(27,94,190,0.2);
+    padding: 4px 12px;
+    text-transform: uppercase;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 80px 48px 64px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--blue);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(40px, 5vw, 64px);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--navy);
+    margin-bottom: 24px;
+  }
+
+  .hero p {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* ── Support options ── */
+  .options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    padding: 48px;
+    max-width: 1000px;
+  }
+
+  .option-card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    padding: 32px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+  }
+
+  .option-card:hover {
+    border-color: var(--blue);
+    background: #F8FAFF;
+  }
+
+  .option-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+  }
+
+  .option-card h3 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  .option-card p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* ── Contact form ── */
+  .contact {
+    padding: 64px 48px;
+    background: var(--navy);
+  }
+
+  .contact h2 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--white);
+    margin-bottom: 16px;
+  }
+
+  .contact p {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .contact-form {
+    max-width: 500px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    font-family: var(--sans);
+    font-size: 14px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+
+  .form-group textarea {
+    min-height: 150px;
+    resize: vertical;
+  }
+
+  .form-submit {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    background: var(--cyan);
+    padding: 14px 32px;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 24px 48px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  footer a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+
+  @media (max-width: 768px) {
+    header, .hero, .options, .contact, footer {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <a href="https://www.openautonomyx.com" class="logo">AUTONOMYX <span>/</span> MODEL GATEWAY</a>
+  <a href="https://www.openautonomyx.com" class="header-badge">Back to Home</a>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-eyebrow">Support</div>
+  <h1>We're here to help.</h1>
+  <p>Choose a support option below or send us a message directly.</p>
+</div>
+
+<!-- Support options -->
+<div class="options">
+  <a href="https://docs.openautonomyx.com" class="option-card">
+    <div class="option-icon">📚</div>
+    <h3>Documentation</h3>
+    <p>Quick start, architecture, API reference, and troubleshooting guides.</p>
+  </a>
+
+  <a href="https://github.com/openautonomyx/autonomyx-model-gateway/issues" class="option-card">
+    <div class="option-icon">🐛</div>
+    <h3>Report a Bug</h3>
+    <p>Found an issue? Open an issue on GitHub and we'll look into it.</p>
+  </a>
+
+  <a href="mailto:support@openautonomyx.com" class="option-card">
+    <div class="option-icon">✉️</div>
+    <h3>Email Support</h3>
+    <p>General questions and technical support. We respond within 24 hours.</p>
+  </a>
+
+  <a href="https://cal.com/thefractionalpm" class="option-card">
+    <div class="option-icon">📅</div>
+    <h3>Book a Call</h3>
+    <p>Schedule a 15-min call for technical discussions or sales queries.</p>
+  </a>
+</div>
+
+<!-- Contact form -->
+<div class="contact">
+  <h2>Send us a message</h2>
+  <p>Fill out the form below and we'll get back to you within 24 hours.</p>
+
+  <form class="contact-form" action="mailto:support@openautonomyx.com" method="post" enctype="text/plain">
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" name="name" required>
+    </div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required>
+    </div>
+
+    <div class="form-group">
+      <label>Subject</label>
+      <select name="subject">
+        <option value="general">General Question</option>
+        <option value="technical">Technical Support</option>
+        <option value="billing">Billing</option>
+        <option value="enterprise">Enterprise / Private Node</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Message</label>
+      <textarea name="message" required></textarea>
+    </div>
+
+    <button type="submit" class="form-submit">Send Message</button>
+  </form>
+</div>
+
+<!-- Footer -->
+<footer>
+  <span>© 2026 OPENAUTONOMYX (OPC) PRIVATE LIMITED · Bengaluru, India</span>
+  <div style="display:flex;gap:20px">
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway">Terms</a>
+    <a href="https://www.openautonomyx.com">Privacy</a>
+  </div>
+</footer>
+
+<!-- Chatbot -->
+<div class="chat-widget">
+  <button class="chat-toggle" id="chatToggle">💬</button>
+  <div class="chat-window" id="chatWindow">
+    <div class="chat-header">
+      <h4>Autonomyx Assistant</h4>
+      <button class="chat-close" id="chatClose">×</button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-message bot">
+        👋 Hi! I'm the Autonomyx Assistant. I can help you with:
+        <br><br>
+        • Getting started with the gateway
+        <br>
+        • Understanding pricing plans
+        <br>
+        • Setting up models and workflows
+        <br>
+        • Private Node deployment
+        <br>
+        • Technical documentation
+        <br><br>
+        What would you like to know?
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Ask me anything...">
+      <button id="chatSend">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const chatToggle = document.getElementById('chatToggle');
+const chatWindow = document.getElementById('chatWindow');
+const chatClose = document.getElementById('chatClose');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+
+chatToggle.addEventListener('click', () => { chatWindow.classList.toggle('open'); });
+chatClose.addEventListener('click', () => { chatWindow.classList.remove('open'); });
+
+const faq = [
+  {keywords: ['start', 'begin', 'getting started', 'setup', 'install', 'deploy'], answer: `To get started: git clone, configure .env, docker compose up -d. API at localhost:4000, Flows at localhost:7860. See docs.openautonomyx.com`},
+  {keywords: ['pricing', 'price', 'cost', 'plan', 'free', 'tier'], answer: `Free: ₹0/mo • Developer: ₹999/mo • Growth: ₹4,999/mo • Enterprise: Custom. All include local models.`},
+  {keywords: ['model', 'llm', 'local', 'ollama', 'qwen', 'deepseek'], answer: `Local models via Ollama: Qwen3-30B-A3B, Qwen2.5-14B, DeepSeek-R1, nomic-embed-text.`},
+  {keywords: ['workflow', 'flow', 'langflow', 'automation'], answer: `12 workflows: Code Review, App Alternatives, Policy Creator/Review, Feature Gap Analyzer, Fraud Sentinel, Web Scraper+RAG, SaaS Evaluator.`},
+  {keywords: ['private', 'node', 'dedicated', 'enterprise', 'dpa'], answer: `Private Node: Fully dedicated VPS, all data stays in your infrastructure, DPDP DPA signable. Contact chinmay@openautonomyx.com`},
+  {keywords: ['api', 'key', 'authentication', 'token'], answer: `Generate key from dashboard. Use: Authorization: Bearer your-key. LiteLLM at localhost:4000/v1/chat/completions`},
+  {keywords: ['docs', 'documentation', 'guide'], answer: `docs.openautonomyx.com - Quick Start, Architecture, Flows Reference, Private Node Setup.`},
+  {keywords: ['language', 'hindi', 'tamil', 'india', 'multilingual'], answer: `22 Indian languages via Qwen3 + IndicTrans2. DPDP 2023 compliant.`},
+  {keywords: ['contact', 'support', 'help', 'email'], answer: `Email: chinmay@openautonomyx.com • Book a call: cal.com/thefractionalpm • GitHub Issues.`}
+];
+
+function getAnswer(q) {
+  for (const item of faq) {
+    for (const kw of item.keywords) {
+      if (q.toLowerCase().includes(kw)) return item.answer;
+    }
+  }
+  return "I can help with: getting started, pricing, models, workflows, Private Node, API keys, docs, languages, contact. Ask me about any of these!";
+}
+
+function addMessage(text, isUser) {
+  const div = document.createElement('div');
+  div.className = 'chat-message ' + (isUser ? 'user' : 'bot');
+  div.innerHTML = text;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function sendMessage() {
+  const q = chatInput.value.trim();
+  if (!q) return;
+  addMessage(q, true);
+  chatInput.value = '';
+  chatSend.disabled = true;
+  chatSend.textContent = '...';
+  setTimeout(() => {
+    addMessage(getAnswer(q), false);
+    chatSend.disabled = false;
+    chatSend.textContent = 'Send';
+  }, 600);
+}
+
+chatSend.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+</script>
+
+<style>
+.chat-widget { position: fixed; bottom: 24px; right: 24px; z-index: 1000; }
+.chat-toggle { width: 56px; height: 56px; border-radius: 50%; background: var(--blue); border: none; cursor: pointer; font-size: 24px; box-shadow: 0 4px 20px rgba(27,94,190,0.3); }
+.chat-window { position: absolute; bottom: 72px; right: 0; width: 360px; height: 450px; background: var(--white); border: 1px solid var(--line); border-radius: 12px; display: none; flex-direction: column; }
+.chat-window.open { display: flex; }
+.chat-header { padding: 16px; background: #F8FAFF; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.chat-header h4 { font-family: var(--mono); font-size: 12px; color: var(--navy); }
+.chat-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+.chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.chat-message { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+.chat-message.user { align-self: flex-end; background: var(--blue); color: var(--white); }
+.chat-message.bot { align-self: flex-start; background: #F8FAFF; color: var(--ink); }
+.chat-input { padding: 12px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+.chat-input input { flex: 1; padding: 10px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); font-size: 13px; }
+.chat-input button { padding: 10px 16px; background: var(--blue); border: none; border-radius: 8px; color: var(--white); font-family: var(--mono); font-size: 11px; text-transform: uppercase; cursor: pointer; }
+@media (max-width: 480px) { .chat-window { width: calc(100vw - 32px); right: -8px; } }
+</style>
+
+</body>
+</html>

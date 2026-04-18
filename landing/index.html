@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Autonomyx Model Gateway — FullStack AI Infrastructure</title>
+<meta name="description" content="Self-hosted AI platform. Local models, intelligent routing, metered billing, 22 Indian languages. Not a proxy. A product.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #001141;
+    --blue: #1B5EBE;
+    --cyan: #00CFFF;
+    --white: #F8FAFF;
+    --muted: #8899BB;
+    --surface: #020D24;
+    --surface2: #051535;
+    --border: rgba(0, 207, 255, 0.12);
+    --font-sans: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--surface);
+    color: var(--white);
+    font-family: var(--font-sans);
+    font-weight: 300;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(0,207,255,0.015) 40px, rgba(0,207,255,0.015) 41px),
+      repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,207,255,0.015) 40px, rgba(0,207,255,0.015) 41px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Ambient glow ── */
+  .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(27,94,190,0.18) 0%, transparent 70%);
+    top: -200px; left: -200px;
+    animation: drift1 20s ease-in-out infinite;
+  }
+  .glow-orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,207,255,0.1) 0%, transparent 70%);
+    bottom: 20%; right: -100px;
+    animation: drift2 15s ease-in-out infinite;
+  }
+  @keyframes drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(80px,60px)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-60px,-40px)} }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 20px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(2,13,36,0.7);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--muted); }
+
+  .nav-links {
+    display: flex; gap: 32px; list-style: none;
+  }
+  .nav-links a {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--white); }
+
+  .nav-cta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--navy);
+    background: var(--cyan);
+    padding: 10px 24px;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: opacity 0.2s;
+  }
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    padding: 120px 48px 80px;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s forwards;
+  }
+
+  .hero-headline {
+    font-size: clamp(48px, 7vw, 96px);
+    font-weight: 600;
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    max-width: 900px;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.4s forwards;
+  }
+
+  .hero-headline .accent {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--cyan);
+  }
+
+  .hero-sub {
+    font-size: 18px;
+    font-weight: 300;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 48px;
+    line-height: 1.7;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.6s forwards;
+  }
+
+  .hero-actions {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.8s forwards;
+  }
+
+  .btn-primary {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--navy);
+    background: var(--cyan);
+    padding: 16px 36px;
+    text-decoration: none;
+    display: inline-block;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,207,255,0.3);
+  }
+
+  .btn-secondary {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 16px 36px;
+    text-decoration: none;
+    display: inline-block;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .btn-secondary:hover { color: var(--white); border-color: rgba(0,207,255,0.3); }
+
+  /* ── Hero terminal ── */
+  .hero-terminal {
+    position: absolute;
+    right: 48px; top: 50%;
+    transform: translateY(-50%);
+    width: min(480px, 40vw);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    opacity: 0;
+    animation: fadeUp 0.8s 1s forwards;
+  }
+
+  .terminal-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: rgba(0,207,255,0.05);
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .terminal-dot:nth-child(1) { background: #FF5F57; }
+  .terminal-dot:nth-child(2) { background: #FEBC2E; }
+  .terminal-dot:nth-child(3) { background: #28C840; }
+  .terminal-title {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .terminal-body { padding: 20px; line-height: 1.8; }
+  .t-comment { color: #3D5A8A; }
+  .t-cmd { color: var(--muted); }
+  .t-cmd::before { content: '$ '; color: var(--cyan); }
+  .t-out { color: var(--white); }
+  .t-key { color: var(--cyan); }
+  .t-val { color: #A8D8A8; }
+  .t-cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--cyan);
+    vertical-align: middle;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── Stat strip ── */
+  .stat-strip {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 48px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+
+  .stat-item {
+    padding: 0 32px;
+    border-right: 1px solid var(--border);
+  }
+  .stat-item:first-child { padding-left: 0; }
+  .stat-item:last-child { border-right: none; }
+
+  .stat-number {
+    font-family: var(--font-mono);
+    font-size: 36px;
+    font-weight: 600;
+    color: var(--cyan);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Section ── */
+  section {
+    position: relative; z-index: 1;
+    padding: 100px 48px;
+  }
+
+  .section-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    max-width: 640px;
+  }
+
+  .section-sub {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 480px;
+    line-height: 1.7;
+    margin-bottom: 60px;
+  }
+
+  /* ── Architecture diagram ── */
+  .arch {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 40px;
+    max-width: 960px;
+  }
+
+  .arch-row {
+    display: flex; gap: 2px;
+    margin-bottom: 2px;
+  }
+
+  .arch-box {
+    flex: 1;
+    padding: 16px 20px;
+    background: rgba(27,94,190,0.1);
+    border: 1px solid rgba(27,94,190,0.2);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+  .arch-box.primary {
+    background: rgba(0,207,255,0.08);
+    border-color: rgba(0,207,255,0.2);
+    color: var(--white);
+  }
+  .arch-box.label {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    display: flex; align-items: center;
+    max-width: 120px;
+    flex: 0 0 120px;
+  }
+  .arch-box strong { display: block; color: var(--cyan); margin-bottom: 2px; font-weight: 500; }
+
+  .arch-arrow {
+    display: flex; justify-content: center; align-items: center;
+    padding: 8px 0;
+    color: var(--muted);
+    font-size: 18px;
+  }
+
+  /* ── Flows grid ── */
+  .flows-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    max-width: 1100px;
+  }
+
+  .flow-card {
+    background: var(--surface2);
+    padding: 28px;
+    transition: background 0.2s;
+    cursor: default;
+  }
+  .flow-card:hover { background: rgba(27,94,190,0.12); }
+
+  .flow-model {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--cyan);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .flow-name {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--white);
+  }
+
+  .flow-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Pricing ── */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    max-width: 1100px;
+  }
+
+  .price-card {
+    background: var(--surface2);
+    padding: 32px 28px;
+    position: relative;
+  }
+  .price-card.featured {
+    background: rgba(0,207,255,0.06);
+    border: 1px solid rgba(0,207,255,0.2);
+  }
+  .price-card.featured::before {
+    content: 'POPULAR';
+    position: absolute;
+    top: -1px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--cyan);
+    color: var(--navy);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    padding: 4px 12px;
+  }
+
+  .price-tier {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .price-amount {
+    font-size: 32px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .price-amount span { font-size: 14px; color: var(--muted); font-weight: 300; }
+
+  .price-tokens {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--cyan);
+    margin-bottom: 20px;
+  }
+
+  .price-features {
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 2;
+  }
+  .price-features li::before { content: '→ '; color: var(--cyan); }
+
+  /* ── Model table ── */
+  .model-table {
+    width: 100%;
+    max-width: 860px;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .model-table th {
+    text-align: left;
+    padding: 12px 20px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+  .model-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(0,207,255,0.06);
+    color: var(--white);
+  }
+  .model-table tr:hover td { background: rgba(27,94,190,0.08); }
+  .model-table .badge {
+    display: inline-block;
+    background: rgba(0,207,255,0.1);
+    color: var(--cyan);
+    padding: 2px 8px;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .model-table .badge.warm {
+    background: rgba(27,94,190,0.15);
+    color: var(--blue);
+  }
+
+  /* ── India-first strip ── */
+  .india-strip {
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 48px;
+  }
+
+  .lang-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    max-width: 860px;
+    margin-top: 32px;
+  }
+
+  .lang-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    letter-spacing: 0.05em;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .lang-tag:hover { color: var(--cyan); border-color: rgba(0,207,255,0.3); }
+  .lang-tag.native { color: var(--cyan); border-color: rgba(0,207,255,0.2); }
+
+  /* ── Legal bar ── */
+  .legal-bar {
+    padding: 20px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  .legal-bar a { color: var(--muted); text-decoration: none; }
+  .legal-bar a:hover { color: var(--white); }
+  .legal-links { display: flex; gap: 24px; }
+
+  /* ── Footer ── */
+  footer {
+    position: relative; z-index: 1;
+    padding: 60px 48px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 48px;
+    margin-bottom: 48px;
+  }
+
+  .footer-brand p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-top: 16px;
+    max-width: 280px;
+  }
+
+  .footer-col h4 {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .footer-col ul { list-style: none; }
+  .footer-col ul li { margin-bottom: 10px; }
+  .footer-col ul a {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-col ul a:hover { color: var(--white); }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    nav { padding: 16px 24px; }
+    .nav-links { display: none; }
+    .hero { padding: 100px 24px 60px; }
+    .hero-terminal { display: none; }
+    .stat-strip { grid-template-columns: repeat(2,1fr); padding: 32px 24px; gap: 24px; }
+    .stat-item { border: none; padding: 0; }
+    section { padding: 60px 24px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .legal-bar { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-orb glow-orb-1"></div>
+<div class="glow-orb glow-orb-2"></div>
+
+<!-- Nav -->
+<nav>
+  <a href="/" class="nav-logo">AUTONOMYX <span>/ MODEL GATEWAY</span></a>
+  <ul class="nav-links">
+    <li><a href="#models">Models</a></li>
+    <li><a href="#flows">Workflows</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/tree/main/docs">Docs</a></li>
+  </ul>
+  <a href="mailto:chinmay@openautonomyx.com" class="nav-cta">Get Access</a>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <p class="hero-eyebrow">From Foundational To Frontier</p>
+  <h1 class="hero-headline">
+    FullStack AI.<br>
+    <span class="accent">Your Infrastructure.</span>
+  </h1>
+  <p class="hero-sub">
+    Local models. Intelligent routing. Metered billing. 22 Indian languages.
+    Not a proxy. Not a toolkit. A complete, self-hosted AI platform.
+  </p>
+  <div class="hero-actions">
+    <a href="mailto:chinmay@openautonomyx.com" class="btn-primary">Get Early Access</a>
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway" class="btn-secondary">View on GitHub</a>
+  </div>
+
+  <!-- Terminal -->
+  <div class="hero-terminal">
+    <div class="terminal-bar">
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <div class="terminal-dot"></div>
+      <span class="terminal-title">autonomyx-gateway</span>
+    </div>
+    <div class="terminal-body">
+      <div class="t-comment"># Your first API call</div>
+      <br>
+      <div class="t-cmd">curl llm.openautonomyx.com/v1/chat/completions \</div>
+      <div style="padding-left:16px;color:var(--muted)">-H <span style="color:#A8D8A8">"Authorization: Bearer sk-autonomyx-xxx"</span> \</div>
+      <div style="padding-left:16px;color:var(--muted)">-d '{</div>
+      <div style="padding-left:32px"><span class="t-key">"model"</span>: <span class="t-val">"ollama/qwen3:30b-a3b"</span>,</div>
+      <div style="padding-left:32px"><span class="t-key">"messages"</span>: [{<span class="t-key">"role"</span>: <span class="t-val">"user"</span>,</div>
+      <div style="padding-left:48px"><span class="t-key">"content"</span>: <span class="t-val">"Review this contract"</span>}]</div>
+      <div style="padding-left:16px;color:var(--muted)">}'</div>
+      <br>
+      <div class="t-comment"># Response in &lt;2s. Data stays on your VPS.</div>
+      <br>
+      <div style="color:var(--cyan)">✓ <span style="color:var(--white)">Routed to Qwen3-30B-A3B (local)</span></div>
+      <div style="color:var(--cyan)">✓ <span style="color:var(--white)">0 tokens sent to cloud</span></div>
+      <div style="color:var(--cyan)">✓ <span style="color:var(--white)">₹0.00 marginal cost</span></div>
+      <br>
+      <span class="t-cursor"></span>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stat-strip">
+  <div class="stat-item">
+    <div class="stat-number">12</div>
+    <div class="stat-label">Pre-built AI workflows</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">22</div>
+    <div class="stat-label">Indian languages supported</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">14</div>
+    <div class="stat-label">Model providers, one API</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-number">₹0</div>
+    <div class="stat-label">Marginal cost for local models</div>
+  </div>
+</div>
+
+<!-- Models -->
+<section id="models">
+  <div class="section-eyebrow">Local models — always-on</div>
+  <h2 class="section-title">Best models per task.<br>Running on your VPS.</h2>
+  <p class="section-sub">No GPU required. Intelligent routing picks the right model automatically. Cloud APIs as fallback only.</p>
+
+  <table class="model-table">
+    <thead>
+      <tr>
+        <th>Model</th>
+        <th>Best for</th>
+        <th>RAM</th>
+        <th>Status</th>
+        <th>Marginal cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Qwen3-30B-A3B</td>
+        <td>Reasoning, agent, chat, policy</td>
+        <td>19GB</td>
+        <td><span class="badge">Always-on</span></td>
+        <td style="color:var(--cyan)">₹0</td>
+      </tr>
+      <tr>
+        <td>Qwen2.5-Coder-32B</td>
+        <td>Code review, generation, debugging</td>
+        <td>22GB</td>
+        <td><span class="badge">Always-on</span></td>
+        <td style="color:var(--cyan)">₹0</td>
+      </tr>
+      <tr>
+        <td>Qwen2.5-14B</td>
+        <td>Extract, structured output</td>
+        <td>9GB</td>
+        <td><span class="badge">Always-on</span></td>
+        <td style="color:var(--cyan)">₹0</td>
+      </tr>
+      <tr>
+        <td>Llama3.2-Vision-11B</td>
+        <td>Image analysis, vision</td>
+        <td>9GB</td>
+        <td><span class="badge warm">Warm slot</span></td>
+        <td style="color:var(--cyan)">₹0</td>
+      </tr>
+      <tr>
+        <td>Gemma3-9B</td>
+        <td>Long context documents</td>
+        <td>6GB</td>
+        <td><span class="badge warm">Warm slot</span></td>
+        <td style="color:var(--cyan)">₹0</td>
+      </tr>
+      <tr>
+        <td>Groq / OpenAI / Anthropic / Vertex</td>
+        <td>Cloud fallback when local fails</td>
+        <td>—</td>
+        <td><span class="badge warm">Fallback</span></td>
+        <td style="color:var(--muted)">Pay per token</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Workflows -->
+<section id="flows" style="background:var(--surface2); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="section-eyebrow">Pre-built workflows</div>
+  <h2 class="section-title">Call a workflow.<br>Get structured JSON.</h2>
+  <p class="section-sub">No prompt engineering. No model selection. One API call returns production-ready output.</p>
+
+  <div class="flows-grid">
+    <div class="flow-card">
+      <div class="flow-model">Qwen2.5-Coder-32B</div>
+      <div class="flow-name">Code Review</div>
+      <div class="flow-desc">Bugs, security issues, style violations, improvement suggestions, overall score.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">Policy Creator</div>
+      <div class="flow-desc">Privacy Policy, Terms of Service, Cookie Policy. DPDP 2023, GDPR, CCPA aware.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">Policy Review</div>
+      <div class="flow-desc">5-domain vendor policy analysis: privacy, AI training, security, carbon, governance.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">Feature Gap Analyzer</div>
+      <div class="flow-desc">Compare any two enterprise products across 8 dimensions. Scored matrix.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">Fraud Sentinel</div>
+      <div class="flow-desc">7-pattern fraud detection. ALLOW/WARN/BLOCK verdict. DPDP compliant, zero PII stored.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B + nomic-embed</div>
+      <div class="flow-name">Web Scraper + RAG</div>
+      <div class="flow-desc">Crawl any URL, extract structured data, embed to SurrealDB for RAG queries.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">SaaS Evaluator</div>
+      <div class="flow-desc">Multi-persona evaluation (CTO/CISO/Procurement). 8-dimension scores.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Qwen3-30B-A3B</div>
+      <div class="flow-name">OSS → SaaS Analyzer</div>
+      <div class="flow-desc">Score any OSS project across 5 commercial archetypes. 90-day action plan.</div>
+    </div>
+    <div class="flow-card">
+      <div class="flow-model">Python only — no LLM</div>
+      <div class="flow-name">Structured Data Parser</div>
+      <div class="flow-desc">Parse JSON, CSV, XML, YAML, Markdown tables. Auto-detect format.</div>
+    </div>
+  </div>
+</section>
+
+<!-- India First -->
+<div class="india-strip">
+  <div class="section-eyebrow">India-first</div>
+  <h2 class="section-title" style="max-width:none">Built for India.<br>All 22 scheduled languages.</h2>
+  <p class="section-sub" style="max-width:600px">
+    Native multilingual support via Qwen3. IndicTrans2 (MIT) for low-resource Indic languages.
+    DPDP 2023 compliance built in. Razorpay billing. Data residency on your VPS.
+  </p>
+  <div class="lang-grid">
+    <span class="lang-tag native">Hindi</span>
+    <span class="lang-tag native">Tamil</span>
+    <span class="lang-tag native">Telugu</span>
+    <span class="lang-tag native">Bengali</span>
+    <span class="lang-tag native">Kannada</span>
+    <span class="lang-tag native">Malayalam</span>
+    <span class="lang-tag native">Gujarati</span>
+    <span class="lang-tag native">Marathi</span>
+    <span class="lang-tag native">Punjabi</span>
+    <span class="lang-tag native">Urdu</span>
+    <span class="lang-tag">Odia</span>
+    <span class="lang-tag">Assamese</span>
+    <span class="lang-tag">Maithili</span>
+    <span class="lang-tag">Santali</span>
+    <span class="lang-tag">Kashmiri</span>
+    <span class="lang-tag">Konkani</span>
+    <span class="lang-tag">Sindhi</span>
+    <span class="lang-tag">Dogri</span>
+    <span class="lang-tag">Manipuri</span>
+    <span class="lang-tag">Bodo</span>
+    <span class="lang-tag">Sanskrit</span>
+    <span class="lang-tag">Nepali</span>
+  </div>
+</div>
+
+<!-- Pricing -->
+<section id="pricing">
+  <div class="section-eyebrow">Pricing</div>
+  <h2 class="section-title">Usage-based.<br>Pay for what you use.</h2>
+  <p class="section-sub">Every tier uses local models first. Cloud APIs only as fallback. Razorpay for India, Stripe + PayPal internationally.</p>
+
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="price-tier">Free</div>
+      <div class="price-amount">₹0</div>
+      <div class="price-tokens">10M tokens / month</div>
+      <ul class="price-features">
+        <li>All local models</li>
+        <li>API access</li>
+        <li>Best-effort SLA</li>
+      </ul>
+    </div>
+    <div class="price-card">
+      <div class="price-tier">Developer</div>
+      <div class="price-amount">₹999 <span>/ month</span></div>
+      <div class="price-tokens">100M tokens / month</div>
+      <ul class="price-features">
+        <li>All local models</li>
+        <li>Cloud fallback (Groq)</li>
+        <li>Best-effort SLA</li>
+      </ul>
+    </div>
+    <div class="price-card featured">
+      <div class="price-tier">Growth</div>
+      <div class="price-amount">₹4,999 <span>/ month</span></div>
+      <div class="price-tokens">1B tokens / month</div>
+      <ul class="price-features">
+        <li>All local models</li>
+        <li>All cloud fallbacks</li>
+        <li>All 12 workflows</li>
+        <li>Best-effort SLA</li>
+      </ul>
+    </div>
+    <div class="price-card">
+      <div class="price-tier">SaaS Basic</div>
+      <div class="price-amount">₹14,999 <span>/ month</span></div>
+      <div class="price-tokens">5B tokens / month</div>
+      <ul class="price-features">
+        <li>Everything in Growth</li>
+        <li>White-label ready</li>
+        <li>Best-effort SLA</li>
+      </ul>
+    </div>
+    <div class="price-card">
+      <div class="price-tier">Private Node</div>
+      <div class="price-amount">₹50k+ <span>/ month</span></div>
+      <div class="price-tokens">Unlimited — dedicated VPS</div>
+      <ul class="price-features">
+        <li>Your infrastructure</li>
+        <li>DPDP DPA signable</li>
+        <li>Support commitment</li>
+        <li>Full data isolation</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="nav-logo">AUTONOMYX <span>/ MODEL GATEWAY</span></a>
+      <p>A complete, self-hosted AI platform for developers and enterprises. Built in India. Running everywhere.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#models">Models</a></li>
+        <li><a href="#flows">Workflows</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway">GitHub</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Docs</h4>
+      <ul>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/docs/quickstart.md">Quick Start</a></li>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/docs/flows-reference.md">Flows Reference</a></li>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/docs/private-node-setup.md">Private Node</a></li>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/docs/architecture.md">Architecture</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <ul>
+        <li><a href="https://linkedin.com/company/openautonomyx1">LinkedIn</a></li>
+        <li><a href="mailto:chinmay@openautonomyx.com">Contact</a></li>
+        <li><a href="https://cal.com/thefractionalpm">Book a call</a></li>
+        <li><a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/terms-of-service.md">Terms</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<div class="legal-bar">
+  <span>© 2026 OPENAUTONOMYX (OPC) PRIVATE LIMITED · CIN: U62010KA2026OPC215666 · Bengaluru, Karnataka</span>
+  <div class="legal-links">
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/terms-of-service.md">Terms of Service</a>
+    <a href="https://github.com/openautonomyx/autonomyx-model-gateway/blob/main/legal/privacy-policy.md">Privacy Policy</a>
+    <a href="mailto:chinmay@openautonomyx.com">chinmay@openautonomyx.com</a>
+  </div>
+</div>
+
+</body>
+</html>

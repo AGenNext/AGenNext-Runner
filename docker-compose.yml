@@ -396,7 +396,8 @@ services:
     networks:
     - coolify
     volumes:
-    - ./trust/index.html:/srv/index.html:ro
+    - ./trust/index.html:/srv/trust/index.html:ro
+    - ./landing:/srv/index.html:ro
     - ./trust/Caddyfile:/etc/caddy/Caddyfile:ro
     - caddy-data:/data
     - caddy-config:/config
