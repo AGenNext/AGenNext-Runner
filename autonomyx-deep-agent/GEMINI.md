@@ -18,12 +18,11 @@
 
 ```
 autonomyx-deep-agent/
-├── src/
-│   ├── agent.py        # LangGraph workflow definition
-│   ├── skills.py       # Tool/Skill integration logic
-│   ├── models.py       # LLM provider and routing logic
-│   ├── constitution.py # Behavior principles
-│   └── main.py         # FastAPI entry point
+├── agent.py        # LangGraph workflow definition
+├── skills.py       # Tool/Skill integration logic
+├── models.py       # LLM provider and routing logic
+├── constitution.py # Behavior principles
+├── main.py         # FastAPI entry point
 ├── .env                # Local secrets (Gateway + Keys)
 ├── pyproject.toml      # Dependencies
 └── GEMINI.md           # This project record
@@ -33,7 +32,7 @@ autonomyx-deep-agent/
 
 1.  **Environment**: Ensure `LITELLM_MASTER_KEY` is set in `.env`.
 2.  **Install**: `pip install -e .`
-3.  **Run**: `python src/main.py`
+3.  **Run**: `python main.py`
 4.  **Test**: `curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"message": "What agents are available?"}'`
 
 ## Progress Record (2026-04-25)

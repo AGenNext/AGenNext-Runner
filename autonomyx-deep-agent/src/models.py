@@ -22,14 +22,18 @@ def get_best_llm(task_description: str) -> Any:
     # Priority 0: Autonomyx Gateway
     if master_key:
         try:
+            # Use HTTP to bypass SSL issues completely
+            direct_url = "http://15.235.211.93:4000/v1"
+            
             # We use ChatOpenAI because the gateway is OpenAI-compatible
             return ChatOpenAI(
-                model="ollama/qwen3:30b-a3b", # Default powerful local model
-                base_url=f"{gateway_url}/v1",
+                model="gemma4:26b",
+                base_url=direct_url,
                 api_key=master_key,
-                timeout=30
+                timeout=120
             )
-        except Exception:
+        except Exception as e:
+            print(f"Error initializing gateway LLM: {e}")
             pass
 
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")

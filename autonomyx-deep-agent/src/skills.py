@@ -3,7 +3,7 @@ import json
 import yaml
 import httpx
 from typing import List, Any, Optional
-from langchain.tools import BaseTool, Tool
+from langchain_core.tools import BaseTool, Tool
 from langchain_mcp_adapters.tools import load_mcp_tools
 from pydantic import Field
 
