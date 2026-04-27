@@ -14,48 +14,48 @@ class ModelSelection(BaseModel):
 def get_best_llm(task_description: str) -> Any:
     """
     Chooses the best available LLM for a particular task.
-    Prioritizes the Autonomyx Gateway (LiteLLM proxy).
     """
-    gateway_url = os.getenv("GATEWAY_URL", "https://llm.openautonomyx.com")
-    master_key = os.getenv("LITELLM_MASTER_KEY")
-    
-    # Priority 0: Autonomyx Gateway
-    if master_key:
-        try:
-            # Use HTTP to bypass SSL issues completely
-            direct_url = "http://15.235.211.93:4000/v1"
-            
-            # We use ChatOpenAI because the gateway is OpenAI-compatible
-            return ChatOpenAI(
-                model="gemma4:26b",
-                base_url=direct_url,
-                api_key=master_key,
-                timeout=120
-            )
-        except Exception as e:
-            print(f"Error initializing gateway LLM: {e}")
-            pass
-
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     google_api_key = os.getenv("GOOGLE_API_KEY")
+    master_key = os.getenv("LITELLM_MASTER_KEY")
+    
+    print(f"DEBUG: Selecting LLM. Keys set: Anthropic={bool(anthropic_api_key)}, OpenAI={bool(openai_api_key)}, Google={bool(google_api_key)}, Master={bool(master_key)}")
 
-    # Fallback to direct providers
-    if anthropic_api_key:
+    # Priority 1: Google (likely valid key)
+    if google_api_key:
+        try:
+            print("DEBUG: Using direct Google (gemini-pro)")
+            return ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=google_api_key)
+        except Exception as e:
+            print(f"DEBUG: Google error: {e}")
+            pass
+
+    # Priority 2: Autonomyx Gateway (fallback)
+    if master_key:
+        try:
+            direct_url = "http://15.235.211.93:4000/v1"
+            print(f"DEBUG: Using Gateway at {direct_url}")
+            return ChatOpenAI(
+                model="gpt-4o-mini",
+                base_url=direct_url,
+                api_key=master_key,
+                timeout=30
+            )
+        except Exception as e:
+            print(f"DEBUG: Gateway error: {e}")
+            pass
+
+    # Fallback to other direct providers
+    if anthropic_api_key and "sk-ant" in anthropic_api_key:
         try:
             return ChatAnthropic(model="claude-3-5-sonnet-20240620", anthropic_api_key=anthropic_api_key)
         except Exception:
             pass
             
-    if openai_api_key:
+    if openai_api_key and not openai_api_key.startswith("sk-agn"): # Real OpenAI key
         try:
             return ChatOpenAI(model="gpt-4o", api_key=openai_api_key)
-        except Exception:
-            pass
-
-    if google_api_key:
-        try:
-            return ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=google_api_key)
         except Exception:
             pass
 
