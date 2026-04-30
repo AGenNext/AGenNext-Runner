@@ -1,0 +1,28 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: shared-reporting
+    receivers:
+      - uid: shared-reporting-email
+        type: email
+        disableResolveMessage: false
+        settings:
+          addresses: $REPORTING_EMAIL_TO
+          singleEmail: false
+          subject: '{{ template "autonomyx.reporting.subject" . }}'
+          message: '{{ template "autonomyx.reporting.message" . }}'
+      - uid: shared-reporting-slack
+        type: slack
+        disableResolveMessage: false
+        settings:
+          recipient: $REPORTING_SLACK_CHANNEL
+          username: $REPORTING_SLACK_USERNAME
+        secure_settings:
+          url: $REPORTING_SLACK_WEBHOOK_URL
+      - uid: shared-reporting-webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: $REPORTING_WEBHOOK_URL
+          http_method: POST
