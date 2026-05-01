@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.title="autonomyx-classifier" \
       org.opencontainers.image.description="Task classifier sidecar for Autonomyx Model Gateway — routes prompts to optimal models" \
