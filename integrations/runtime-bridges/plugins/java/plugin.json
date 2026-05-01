@@ -1,0 +1,13 @@
+{
+  "name": "agennext-java-bridge",
+  "version": "0.1.0",
+  "runtime": "java",
+  "entrypoint": "../../java/Bridge.java",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels java runtime bridge plugin template"
+}

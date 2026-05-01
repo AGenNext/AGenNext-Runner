@@ -1,0 +1,13 @@
+{
+  "name": "agennext-go-bridge",
+  "version": "0.1.0",
+  "runtime": "go",
+  "entrypoint": "../../go/bridge.go",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels go runtime bridge plugin template"
+}

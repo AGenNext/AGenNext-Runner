@@ -1,0 +1,13 @@
+{
+  "name": "agennext-rust-bridge",
+  "version": "0.1.0",
+  "runtime": "rust",
+  "entrypoint": "../../rust/bridge.rs",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels rust runtime bridge plugin template"
+}

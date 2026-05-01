@@ -1,0 +1,13 @@
+{
+  "name": "agennext-python-bridge",
+  "version": "0.1.0",
+  "runtime": "python",
+  "entrypoint": "../../python/bridge.py",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels python runtime bridge plugin template"
+}

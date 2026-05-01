@@ -1,0 +1,13 @@
+{
+  "name": "agennext-dotnet-bridge",
+  "version": "0.1.0",
+  "runtime": "dotnet",
+  "entrypoint": "../../dotnet/bridge.cs",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels dotnet runtime bridge plugin template"
+}

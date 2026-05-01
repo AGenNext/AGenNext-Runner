@@ -1,0 +1,13 @@
+{
+  "name": "agennext-node-bridge",
+  "version": "0.1.0",
+  "runtime": "node",
+  "entrypoint": "../../node/bridge.ts",
+  "capabilities": [
+    "init",
+    "invoke",
+    "stream",
+    "close"
+  ],
+  "description": "AGenNext Kernels node runtime bridge plugin template"
+}
