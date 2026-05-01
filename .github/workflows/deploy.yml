@@ -109,7 +109,7 @@ jobs:
         run: echo "version=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Build & push frpc
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./frpc
           file: ./frpc/Dockerfile
@@ -128,7 +128,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Build & push playwright
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./playwright
           file: ./playwright/Dockerfile
@@ -145,7 +145,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Build & push classifier
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./classifier
           file: ./classifier/Dockerfile
@@ -162,7 +162,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Build & push translator
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./translator
           file: ./translator/Dockerfile
