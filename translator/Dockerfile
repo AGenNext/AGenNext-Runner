@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.title="autonomyx-translator" \
       org.opencontainers.image.description="22-language translation sidecar for Autonomyx Model Gateway — all Indian scheduled languages" \
