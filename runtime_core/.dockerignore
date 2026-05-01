@@ -1,0 +1,15 @@
+# Docker ignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest/
+.coverage
+.git/
+.gitignore
+*.md
+tests/
+*.egg-info/
+.env
+.env.*
+*.log
