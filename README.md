@@ -15,7 +15,7 @@ AGenNext Kernel
   └─ executes through the core kernel runtime
 ```
 
-The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the runtime bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the core execution engine.
+The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the runtime bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the core execution engine and can be deployed anywhere.
 
 This repository should stay focused on Runner responsibilities: runtime bridges, compose references, model access, routing, observability, usage metering, billing, policy checks, and integration with Kernel. Framework-specific apps should live outside this repo unless they become official bridge adapters.
 
@@ -46,9 +46,11 @@ AGenNext Runner is not for:
 
 **AGenNext Kernel is the kernel.**
 
-Runner does not replace Kernel. Runner connects selected runtime bridges to Kernel.
+Kernel is deployment-target agnostic. It can run anywhere the operator chooses, including local Docker, a VPS, Kubernetes, private cloud, public cloud, edge nodes, customer infrastructure, or a managed AGenNext environment.
 
-The runner includes an `agennext-kernel` Docker Compose service reference. It is intentionally a reference to a Kernel image/repository, not a copy of Kernel source code.
+Runner does not replace Kernel and does not own Kernel source code. Runner connects Platform-selected runtime bridges to whichever Kernel deployment is configured.
+
+The runner includes an `agennext-kernel` Docker Compose service reference for local or co-located deployments. It is intentionally a reference to a Kernel image/repository, not a copy of Kernel source code.
 
 Expected compose pattern:
 
@@ -57,6 +59,15 @@ agennext-kernel:
   image: ${AGENNEXT_KERNEL_IMAGE:-ghcr.io/agennext/kernel:latest}
   environment:
     - KERNEL_REPO=${AGENNEXT_KERNEL_REPO:-https://github.com/AGenNext/Kernel}
+    - KERNEL_ENDPOINT=${AGENNEXT_KERNEL_ENDPOINT:-http://agennext-kernel:8080}
+```
+
+For external Kernel deployments, Runner should point to the remote Kernel endpoint instead of starting a local Kernel container:
+
+```env
+AGENNEXT_KERNEL_ENDPOINT=https://kernel.<your-domain>
+AGENNEXT_KERNEL_IMAGE=
+AGENNEXT_KERNEL_REPO=https://github.com/AGenNext/Kernel
 ```
 
 Use this repo to configure, run, and connect Kernel. Keep Kernel implementation in the Kernel repository.
@@ -71,7 +82,7 @@ Primary bridge points:
 
 | Bridge point | Purpose |
 |---|---|
-| AGenNext Kernel service | Core kernel execution target |
+| AGenNext Kernel endpoint | Core kernel execution target, local or remote |
 | LiteLLM OpenAI-compatible API | Model access for Kernel, frameworks, SDKs, and agents |
 | Langflow API | Workflow execution and hosted flow templates |
 | Model recommender route | Runtime model selection once enabled |
@@ -164,6 +175,7 @@ curl -X POST https://flows.<your-domain>/api/v1/run/{flow_id} \
 ```text
 flows.<your-domain>    → Langflow workflows
 llm.<your-domain>      → LiteLLM gateway API
+kernel.<your-domain>   → Optional external Kernel endpoint
 traces.<your-domain>   → Langfuse tracing
 billing.<your-domain>  → Lago billing API/UI path
 metrics.<your-domain>  → Grafana dashboards
@@ -172,7 +184,7 @@ errors.<your-domain>   → GlitchTip
 trust.<your-domain>    → Trust centre site
 ```
 
-Internal-only services include SurrealDB, OPA, OpenFGA, classifier, translator, Playwright, Kernel internals, and backup.
+Internal-only services include SurrealDB, OPA, OpenFGA, classifier, translator, Playwright, Kernel internals when co-located, and backup.
 
 ---
 
@@ -207,7 +219,7 @@ Treat flow JSON files as importable templates. Validate each flow before offerin
 
 ```bash
 cp .env.example .env
-# Fill required secrets and provider keys.
+# Fill required secrets, provider keys, and Kernel endpoint/image settings.
 docker compose config
 docker compose up -d
 ```
@@ -237,6 +249,7 @@ curl http://127.0.0.1:4000/health
 - Validate Lago usage events from LiteLLM completions.
 - Reconcile Keycloak vs Logto references in `.env.example`, docs, and compose.
 - Add bridge docs/compose snippets for Platform-selectable frameworks and SDKs.
+- Validate local and remote Kernel deployment modes.
 - Run end-to-end tests for each public flow and bridge.
 - Load test Ollama memory behaviour on the target VPS.
 - Keep framework-specific apps outside this repo unless they become official runtime bridges.
