@@ -1,216 +1,256 @@
 # Autonomyx Model Gateway
 
-**A complete, self-hosted AI platform. Not a proxy. Not a toolkit. A product.**
+Self-hosted AI platform stack for running local LLMs behind a LiteLLM gateway, with Langflow workflows, usage billing, tracing, monitoring, policy enforcement, and operational tooling.
 
-One deployment gives you:
-- Best open-source models running locally (zero API cost for compute)
-- Intelligent routing — right model for every task, automatically
-- Metered billing per tenant — Lago invoices, Langfuse traces
-- Multi-tenant auth — Keycloak, one command to onboard a customer
-- Shared SSO + shared notifications — one config layer for auth, SMTP, email, Slack, webhook
-- Pre-built AI workflows — ready to call, not ready to configure
-- 22 Indian languages + Arabic + Southeast Asian — built in
-- Human feedback loop — improves models on your actual workload
+This repository is an operator stack, not a single binary product. The core services and many integration files are present, but a few advanced API routes are intentionally disabled until their dependent services are stable.
 
 ---
 
-## What your customer does
+## Current status
+
+Implemented in this repository:
+
+- LiteLLM gateway configuration with local-first routing and cloud fallbacks
+- Ollama local model stack and pull script
+- Langflow service with flow files mounted from `flows/`
+- Lago billing services and LiteLLM callback integration files
+- Langfuse tracing configuration
+- Prometheus and Grafana monitoring
+- Uptime Kuma, GlitchTip, OpenTelemetry, Jaeger, VictoriaLogs, backup, pgAdmin, Infisical, SurrealDB
+- OpenFGA and OPA policy/authz services
+- Classifier, translator, and Playwright sidecar service definitions
+- Docker Compose deployment for the primary 96GB node
+
+Known limitations in the current code:
+
+- LiteLLM `additional_routers` are currently disabled in `config.yaml` because some modules crash on startup when connecting to dependent services.
+- `/recommend`, `/feedback`, `/translate`, and related router endpoints should be treated as present in code but not enabled by default.
+- Some Langflow flows call disabled endpoints, so they may need router re-enablement or URL changes before they run end to end.
+- Tenant onboarding is not fully automatic yet. Keycloak, Lago, LiteLLM, and Langfuse pieces exist in docs/config, but the full create-group-to-provision-everything path should be validated before production claims.
+- Per-tenant Langfuse isolation is partly implemented; `feedback.py` currently falls back to shared Langfuse project keys until tenant-specific key lookup is completed.
+- Logto references still exist in `.env.example` and docs even though the intended direction is Keycloak-based SSO.
+
+---
+
+## What customers call
+
+When Langflow flows are imported and the relevant services are configured, customers call Langflow flow endpoints:
 
 ```bash
-# That's it. One call. Everything else is handled.
-curl https://flows.openautonomyx.com/api/v1/run/{flow_id} \
+curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} \
   -H "Authorization: Bearer lf-their-api-key" \
+  -H "Content-Type: application/json" \
   -d '{"input_value": "Review this contract for risk clauses"}'
 ```
 
-They don't configure models. They don't manage routing. They don't touch billing.
-You handle all of it. They get results.
-
----
-
-## What you get as the operator
-
-```
-flows.openautonomyx.com    → Autonomyx Langflow (your pre-built workflows)
-llm.openautonomyx.com      → Gateway API (direct model access for developers)
-traces.openautonomyx.com   → Langfuse (per-tenant trace isolation)
-billing.openautonomyx.com  → Lago (invoicing, metered plans)
-auth.openautonomyx.com     → Keycloak (tenant onboarding, SSO)
-metrics.openautonomyx.com  → Grafana (Prometheus, dashboard ID 17587)
-mcp.openautonomyx.com      → MCP server (8 tools for Claude / agent access)
-```
-
----
-
-## Models running locally (zero marginal cost)
-
-| Model | Tasks | Always-on | RAM |
-|---|---|---|---|
-| Qwen3-30B-A3B | reason, agent, chat | ✅ | 19GB |
-| Qwen2.5-Coder-32B | code | ✅ | 22GB |
-| Qwen2.5-14B | extract, structured output | ✅ | 9GB |
-| Llama 3.2 11B Vision | vision | warm slot | 9GB |
-| Llama 3.1 8B | chat overflow | warm slot | 6GB |
-| Gemma 3 9B | long context | warm slot | 6GB |
-
-Peak RAM: ~84GB. Runs on a 96GB VPS. No GPU required.
-
----
-
-## Pre-built workflows (flows/)
-
-| Flow | Model | What it does |
-|---|---|---|
-| `gateway-agent.json` | Qwen3-30B (recommended) | Language detect → recommend model → LLM → feedback capture |
-| `code-review.json` | Qwen2.5-Coder-32B | Code review → JSON: bugs, security, style, score |
-| `policy-creator.json` | Qwen3-30B | Generate Privacy Policy, ToS, Cookie Policy — DPDP 2023 |
-| `policy-review.json` | Qwen3-30B | Analyse vendor policy → 5-domain risk report + actions |
-| `feature-gap-analyzer.json` | Qwen3-30B | Compare two products across 8 dimensions → scored matrix |
-| `saas-evaluator.json` | Qwen3-30B | Multi-persona SaaS evaluation → scored JSON + recommendation |
-| `fraud-sentinel.json` | Qwen3-30B | Transaction fraud detection → ALLOW/WARN/BLOCK verdict |
-| `app-alternatives-finder.json` | Qwen3-30B | Find OSS + commercial alternatives → ranked list |
-| `saas-standardizer.json` | Qwen3-30B | Exhaustive SaaS product profile → 18-dimension JSON |
-| `oss-to-saas-analyzer.json` | Qwen3-30B | Score OSS project across 5 commercial archetypes |
-| `structured-data-parser.json` | Python only | Parse JSON/CSV/XML/YAML/Markdown → structured JSON (no LLM) |
-| `web-scraper.json` | Qwen3-30B + nomic-embed | Crawl any URL → structured extract → embed → SurrealDB RAG index |
-| `site-scraper-rag.json` | Qwen3-30B + nomic-embed-text | Crawl any URL → structured extract → embed → SurrealDB RAG |
-| `feature-gap-analyzer.json` | Qwen3-30B-A3B (always) | Compare 2-3 products → scored feature matrix + gaps + recommendation |
-| `structured-data-parser.json` | Qwen2.5-Coder-32B (always) | Any data sample → Python parser code + schema + tests |
-
-Add your own flows to `flows/` — they load into Autonomyx Langflow on startup.
-
----
-
-## Customer onboarding — one command
+For direct model access, developers can call the LiteLLM OpenAI-compatible endpoint:
 
 ```bash
-# Create a Keycloak group → auto-provisions:
-#   Lago customer (billing)
-#   LiteLLM virtual key (spend tracking)
-#   Langfuse organisation (trace isolation)
-#   Langflow API key (workflow access)
-
-curl -X POST https://auth.openautonomyx.com/admin/realms/autonomyx/groups \
-  -H "Authorization: Bearer $KC_ADMIN_TOKEN" \
-  -d '{"name": "tenant-acme"}'
-# kc_lago_sync.py handles the rest automatically
+curl -X POST https://llm.openautonomyx.com/v1/chat/completions \
+  -H "Authorization: Bearer sk-your-litellm-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "ollama/qwen3:30b-a3b",
+    "messages": [{"role": "user", "content": "Summarise this policy"}]
+  }'
 ```
 
 ---
 
-## Pricing tiers (your customers)
+## Operator endpoints
 
-| Tier | Price | What they get |
+Default public hostnames used by the stack:
+
+```text
+flows.openautonomyx.com    → Langflow workflows
+llm.openautonomyx.com      → LiteLLM gateway API
+traces.openautonomyx.com   → Langfuse tracing
+billing.openautonomyx.com  → Lago billing API/UI path
+metrics.openautonomyx.com  → Grafana dashboards
+uptime.openautonomyx.com   → Uptime Kuma
+errors.openautonomyx.com   → GlitchTip
+trust.openautonomyx.com    → Trust centre site
+```
+
+Several internal-only services are intentionally not exposed publicly, including SurrealDB, OPA, OpenFGA, classifier, translator, Playwright, and backup.
+
+---
+
+## Local models
+
+The local model configuration is defined in `config.yaml`, and the pull/warmup routine is in `ollama-pull.sh`.
+
+| Model | Intended tasks | Loading mode | Approx RAM |
+|---|---|---:|---:|
+| `ollama/qwen3:30b-a3b` | reasoning, agent, chat, analysis, policy | always-on | 19GB |
+| `ollama/qwen2.5-coder:32b` | code review, generation, debugging | always-on | 22GB |
+| `ollama/qwen2.5:14b` | extraction, structured output, summarisation | always-on | 9GB |
+| `ollama/llama3.2-vision:11b` | vision tasks | warm slot | 9GB |
+| `ollama/llama3.1:8b` | fast chat, simple tasks | warm slot | 6GB |
+| `ollama/gemma3:9b` | long-context documents | warm slot | 6GB |
+| `nomic-embed-text` | embeddings for RAG/scraping | always-on | ~274MB |
+
+The intended peak model RAM is about 84GB on a 96GB VPS. `docker-compose.yml` sets `OLLAMA_MEM_LIMIT` to 76GB by default, so tune this against actual workload and available memory.
+
+---
+
+## Routing and fallbacks
+
+`config.yaml` uses LiteLLM with local models as primary routes and cloud providers as fallback routes.
+
+Examples:
+
+- `ollama/qwen3:30b-a3b` falls back to Groq, Vertex Claude/Gemini, Anthropic, and OpenAI models.
+- `ollama/qwen2.5-coder:32b` falls back to Groq, Vertex Gemini, OpenAI, and Vertex Claude.
+- `ollama/qwen2.5:14b` falls back to Groq, OpenAI mini, and Gemini Flash.
+
+Cloud provider keys are read from environment variables. No provider API keys should be committed.
+
+---
+
+## Langflow workflows
+
+Flow files live in `flows/` and are mounted into the Langflow container.
+
+Examples currently present include:
+
+| Flow | Purpose | Notes |
 |---|---|---|
-| Free | 10M tokens/month | Gateway API access |
-| Developer | ₹999/month | 100M tokens, all local models |
-| Growth | ₹4,999/month | 1B tokens, cloud fallback |
-| SaaS Basic | ₹14,999/month | 5B tokens, white-label, Lago sub-billing |
-| Private Node | ₹50,000+/month | Dedicated infra, DPDP DPA, India region |
+| `gateway-agent.json` | Detect language, recommend model, call LLM, capture feedback | Depends on `/recommend`, `/feedback`, and `/translate`; these routers are disabled by default in `config.yaml`. |
+| `code-review.json` | Structured code review through `ollama/qwen2.5-coder:32b` | More self-contained; still requires Langflow import and LiteLLM key setup. |
 
-Shared SaaS: billing and trace data isolated per tenant. Compute shared.
-Private Node: full infrastructure isolation. DPDP DPA signable.
+Treat flow JSON files as importable templates. Validate each flow in your Langflow version before offering it as a production endpoint.
 
 ---
 
-## Stack — every component chosen deliberately
+## Disabled custom routers
 
-19 services. Every one has documented rationale, rejected alternatives, migration cost, and a review date. See `references/service-decision-log.md`. Next review: October 2026.
+The following files contain FastAPI routers or gateway extensions:
 
-| Layer | Component | Licence |
-|---|---|---|
-| Gateway | LiteLLM OSS | MIT |
-| Models | Ollama + llama.cpp | MIT |
-| Workflows | Langflow | MIT |
-| Billing | Lago OSS | AGPL-3.0 |
-| Auth | Keycloak | Apache 2.0 |
-| Tracing | Langfuse v3 | MIT |
-| Metrics | Prometheus + Grafana | Apache 2.0 |
-| Translation (Indian) | IndicTrans2 | MIT |
-| Translation (Arabic/SEA) | Opus-MT | Apache 2.0 |
-| Language detection | fastText LID | Apache 2.0 |
-| Task classifier | sentence-transformers | Apache 2.0 |
+- `recommender.py`
+- `feedback.py`
+- `openfga_authz.py`
+- `opa_middleware.py`
+- `agent_identity.py`
+- `agent_discovery.py`
 
-> ⚠️ NLLB-200 and SeamlessM4T are CC-BY-NC 4.0 — not commercially usable. Neither is in this stack.
+`config.yaml` currently comments out `general_settings.additional_routers` because the modules can crash on startup when dependent services are unavailable. Re-enable these only after confirming service availability and import-time behaviour.
 
----
+Recommended validation before re-enabling:
 
-## Shared Auth And Reporting
-
-The platform now has a shared operator config layer for:
-
-- SSO / OIDC: `LOGTO_*` and generic `SSO_*`
-- SMTP / transactional email: `SMTP_*`
-- Reporting sinks: `REPORTING_*` for email, Slack, webhook, GlitchTip, and Langfuse
-
-These values are designed to be managed as GitHub Actions `production` environment secrets and injected into the server `.env` during deploy. The goal is to avoid per-service secret drift.
-
-Currently wired in the stack:
-
-- Shared SMTP: Grafana, GlitchTip, Infisical, pgAdmin, Lago, Langfuse
-- Shared reporting contact points in Grafana: email, Slack webhook, generic webhook
-- Shared SSO contract in env/docs for direct OIDC or `oauth2-proxy` based rollout
-- Shared health layer: Uptime Kuma, GlitchTip uptime monitors, deploy health checks
-- Optional external observability sink: SigNoz Cloud via dual-export OpenTelemetry collector
-
-See:
-
-- `docs/github-secrets.md`
-- `docs/operator-setup.md`
-- `.env.example`
-
----
-
-## Two-node deployment (recommended)
-
-```
-96GB VPS — inference          48GB VPS — business logic
-──────────────────────        ──────────────────────────
-LiteLLM + Ollama              Langfuse
-Langflow + flows              Lago
-Prometheus + Grafana          Keycloak
-Classifier + Translator       Mailserver
-Peak: ~84GB                   Peak: ~20GB / 28GB free
+```bash
+docker compose config
+docker compose up -d postgres classifier translator openfga opa litellm
+docker logs autonomyx-litellm --tail=200
+curl http://localhost:4000/health
 ```
 
-No Kubernetes. Two Coolify-managed Docker Compose stacks.
+Then re-enable one router at a time in `config.yaml` and restart LiteLLM.
+
+---
+
+## Billing and tracing
+
+Lago services are defined in `docker-compose.yml`, including API, worker, clock, frontend, database, Redis, storage, and Gotenberg PDF support.
+
+`lago_callback.py` is mounted into the LiteLLM container and registered in `config.yaml` callbacks. This is intended to send LiteLLM usage events to Lago.
+
+Langfuse is configured through environment variables and LiteLLM callback settings. Current tenant isolation should be validated before claiming strict per-tenant trace separation. `feedback.py` currently contains a TODO for tenant-specific Langfuse key lookup.
+
+---
+
+## Auth and policy
+
+The stack includes:
+
+- OpenFGA for relationship-based authorization
+- OPA for conditional policy checks
+- Keycloak variables and intended identity-provider direction
+- Legacy Logto/shared SSO variables still present in `.env.example` and docs
+
+Current state: Keycloak is the intended direction, but Logto references have not yet been fully removed. Do not claim the auth layer is fully migrated until the env/docs and deployment services are reconciled.
+
+---
+
+## Deployment
+
+Primary deployment target: a Coolify-managed Docker Compose stack on a 96GB VPS.
+
+```bash
+cp .env.example .env
+# Fill required secrets and provider keys.
+docker compose config
+docker compose up -d
+```
+
+Pull and warm local models:
+
+```bash
+docker exec autonomyx-ollama sh /ollama-pull.sh
+```
+
+Useful checks:
+
+```bash
+docker compose ps
+docker logs autonomyx-litellm --tail=200
+docker exec autonomyx-ollama ollama ps
+curl http://127.0.0.1:4000/health
+```
 
 ---
 
 ## Repository structure
 
-```
-autonomyx-model-gateway/
+```text
+.
 ├── README.md
-├── SKILL.md                          # Claude skill — 16 steps, full output checklist
+├── SKILL.md
+├── docker-compose.yml
+├── config.yaml
+├── .env.example
+├── ollama-pull.sh
+├── lago_callback.py
+├── recommender.py
+├── feedback.py
+├── openfga_authz.py
+├── opa_middleware.py
+├── agent_identity.py
+├── agent_discovery.py
 ├── flows/
-│   └── gateway-agent.json            # Pre-built workflow: detect → route → respond → feedback
-└── references/
-    ├── config-template.md            # LiteLLM config — all 14 providers
-    ├── docker-compose-template.md    # Coolify + generic variants, all services
-    ├── defaults.md                   # Canonical defaults
-    ├── env-vars.md                   # All env vars, all services
-    ├── model-limits.md               # Context windows per model
-    ├── lago-integration.md           # Dual-track billing
-    ├── mailserver-integration.md     # SMTP, DNS, DKIM
-    ├── keycloak-integration.md       # Auth, tenant sync, OIDC
-    ├── langflow-integration.md       # Gateway ↔ Langflow wiring
-    ├── langflow-agent.md             # Flow architecture, variants
-    ├── mcp-integration.md            # autonomyx-mcp wiring
-    ├── model-recommender.md          # /recommend endpoint
-    ├── local-classifier.md           # Task classifier sidecar
-    ├── local-model-catalogue.md      # Model tiers, 96GB stack
-    ├── profitability.md              # Pricing, cost model, GTM
-    ├── langfuse-integration.md       # Multi-tenant tracing
-    ├── model-improvement.md          # Opt-in feedback, RAG, fine-tuning
-    ├── human-feedback.md             # Widget + SDK + Langfuse routing
-    ├── translation.md                # IndicTrans2 + Opus-MT + fastText
-    ├── two-node-setup.md             # 96GB + 48GB split, migration
-    ├── gateway-mcp-server.md         # MCP server — 8 typed tools
-    ├── deployment-agent.md           # Autonomous deployment pipeline
-    ├── runtime-decision-log.md       # Ollama vs Docker Model Runner
-    └── service-decision-log.md       # All 19 services: why, when to review
+├── docs/
+├── references/
+├── classifier/
+├── translator/
+├── playwright/
+├── postgres/
+├── postgres-lago/
+├── opa/
+├── otel/
+├── grafana/
+├── jaeger/
+├── backup/
+├── frpc/
+├── trust/
+└── landing/
 ```
+
+---
+
+## Production readiness checklist
+
+Before marketing this as a complete production product, validate and/or complete:
+
+- Re-enable and test `additional_routers` one by one.
+- Confirm `/recommend`, `/feedback`, and `/translate` are reachable from Langflow.
+- Update `gateway-agent.json` URLs if translation remains a sidecar-only service.
+- Finish tenant-specific Langfuse key lookup.
+- Validate Lago usage events from LiteLLM completions.
+- Reconcile Keycloak vs Logto references in `.env.example`, docs, and compose.
+- Confirm Keycloak group creation provisions Lago customer, LiteLLM key, Langfuse project, and Langflow access if that remains the onboarding claim.
+- Run end-to-end tests for each public flow.
+- Load test Ollama memory behaviour on the target VPS.
+- Remove or clearly mark any aspirational pricing/tenant claims until automation is proven.
 
 ---
 
