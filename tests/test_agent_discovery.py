@@ -15,6 +15,7 @@ class TestDiscoveryModule:
         paths = [r.path for r in router.routes]
         assert "/.well-known/agent-configuration" in paths
         assert "/.well-known/agent-configuration.json" in paths
+        assert "/agents/microservices" in paths
 
 
 class TestDiscoveryDocument:
@@ -77,7 +78,7 @@ class TestDiscoveryDocument:
         from agent_discovery import agent_configuration
         doc = await agent_configuration()
         endpoints = doc["endpoints"]
-        for ep in ["register", "execute", "models", "health", "discovery"]:
+        for ep in ["register", "execute", "models", "health", "discovery", "agent_microservices"]:
             assert ep in endpoints, f"Missing endpoint: {ep}"
 
     @pytest.mark.asyncio
@@ -118,3 +119,20 @@ class TestDiscoveryDocument:
         doc = await agent_configuration()
         assert "schema_version" in doc
         assert "agent_auth_protocol_version" in doc
+
+    @pytest.mark.asyncio
+    async def test_microservices_endpoint_payload(self):
+        from agent_discovery import agents_microservices
+        payload = await agents_microservices()
+        assert payload["provider"]["name"] == "AGenNext Kernel"
+        assert payload["catalog_endpoint"].endswith("/agents/catalog")
+        assert "{agent}" in payload["invoke_endpoint"]
+
+
+    @pytest.mark.asyncio
+    async def test_microservices_extension_reference(self):
+        from agent_discovery import agents_microservices
+        payload = await agents_microservices()
+        assert payload["provider"]["name"] == "AGenNext Kernel"
+        assert "github.com/AGenNext/Kernel" in payload["provider"]["repo"]
+        assert payload["catalog_endpoint"].endswith("/agents/catalog")

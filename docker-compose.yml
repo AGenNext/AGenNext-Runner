@@ -125,6 +125,18 @@ services:
     - "traefik.http.routers.litellm.tls.certresolver=letsencrypt"
     - "traefik.http.services.litellm.loadbalancer.server.port=4000"
 
+
+  agennext-kernel:
+    image: ${AGENNEXT_KERNEL_IMAGE:-ghcr.io/agennext/kernel:latest}
+    container_name: agennext-kernel
+    restart: always
+    networks:
+    - coolify
+    environment:
+    - KERNEL_REPO=${AGENNEXT_KERNEL_REPO:-https://github.com/AGenNext/Kernel}
+    labels:
+    - traefik.enable=false
+
   ollama:
     image: ollama/ollama:latest
     container_name: autonomyx-ollama

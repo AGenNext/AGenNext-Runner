@@ -20,6 +20,32 @@ FLOWS_URL      = os.environ.get("FLOWS_URL",       "https://flows.openautonomyx.
 MCP_URL        = os.environ.get("MCP_URL",         "https://mcp.openautonomyx.com")
 
 
+KERNEL_EXTENSION_NAME = os.environ.get("KERNEL_EXTENSION_NAME", "AGenNext Kernel")
+KERNEL_EXTENSION_REPO = os.environ.get(
+    "KERNEL_EXTENSION_REPO",
+    "https://github.com/AGenNext/Kernel",
+)
+KERNEL_EXTENSION_URL = os.environ.get(
+    "KERNEL_EXTENSION_URL",
+    "http://agennext-kernel:8080",
+)
+
+
+@router.get("/agents/microservices")
+async def agents_microservices():
+    """Expose upstream AGenNext Kernel extension as the microservices catalog."""
+    return {
+        "gateway": GATEWAY_NAME,
+        "provider": {
+            "name": KERNEL_EXTENSION_NAME,
+            "repo": KERNEL_EXTENSION_REPO,
+            "base_url": KERNEL_EXTENSION_URL,
+        },
+        "catalog_endpoint": f"{KERNEL_EXTENSION_URL}/agents/catalog",
+        "invoke_endpoint": f"{KERNEL_EXTENSION_URL}/agents/{{agent}}/invoke",
+    }
+
+
 @router.get("/.well-known/agent-configuration")
 async def agent_configuration():
     """
@@ -198,6 +224,7 @@ async def agent_configuration():
 
         # ── Agent lifecycle endpoints ─────────────────────────────────────────
         "endpoints": {
+            "agent_microservices": f"{GATEWAY_URL}/agents/microservices",
             "register":    f"{GATEWAY_URL}/agents/create",
             "list_agents": f"{GATEWAY_URL}/agents",
             "suspend":     f"{GATEWAY_URL}/agents/{{agent_id}}/suspend",
