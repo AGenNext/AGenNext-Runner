@@ -1,8 +1,33 @@
 # AGenNext Runner
 
-Self-hosted runner stack for AGenNext agents and workflows, built on LiteLLM, Ollama, Langflow, billing, tracing, monitoring, policy enforcement, and operational tooling.
+Runtime and bridge layer for AGenNext.
 
-This repository is an operator stack, not a single binary product. It includes a model gateway layer for local and cloud LLM routing, plus the surrounding services needed to run agent workflows. The core services and many integration files are present, but a few advanced API routes are intentionally disabled until their dependent services are stable.
+This repository is responsible for running, routing, observing, metering, and policy-checking agent and workflow execution. It should stay focused on runtime infrastructure and bridges to other runtimes, not on bundling standalone agent applications.
+
+The stack includes a model gateway layer for local and cloud LLM routing, plus supporting services for workflow execution, billing, tracing, monitoring, policy enforcement, and runtime integration. Framework-specific agent apps should live outside this repo and connect through documented bridge points.
+
+---
+
+## Scope
+
+AGenNext Runner is for:
+
+- Running core runtime services
+- Bridging to other runtimes and agent frameworks
+- Providing model access through LiteLLM and Ollama
+- Hosting/importing workflow templates through Langflow
+- Exposing runtime APIs for recommendation, feedback, identity, discovery, policy, and authorization once enabled
+- Collecting traces, usage, metrics, and billing events
+- Enforcing runtime policies through OpenFGA and OPA
+
+AGenNext Runner is not for:
+
+- Bundling one-off deep-agent applications
+- Keeping framework-specific experiments as first-class runtime code
+- Hardcoding a single agent architecture as the product
+- Mixing old Autonomyx-branded app modules into the runner layer
+
+Frameworks such as LangGraph, CrewAI, AutoGen, LangChain, LlamaIndex, Mastra, Semantic Kernel, or custom runtimes can be configured as next-step integrations through bridge adapters.
 
 ---
 
@@ -32,26 +57,49 @@ Known limitations in the current code:
 
 ---
 
+## Runtime bridge model
+
+External agent frameworks should connect to AGenNext Runner through stable bridge points instead of being copied into this repository.
+
+Primary bridge points:
+
+| Bridge point | Purpose |
+|---|---|
+| LiteLLM OpenAI-compatible API | Model access for external runtimes and agents |
+| Langflow API | Workflow execution and hosted flow templates |
+| Model recommender route | Runtime model selection once enabled |
+| Feedback route | Human/application feedback capture once enabled |
+| Agent discovery route | Runtime capability discovery once enabled |
+| Agent identity route | Runtime identity lifecycle once enabled |
+| OpenFGA / OPA | Authorization and policy checks |
+| Langfuse | Tracing, evaluation, and observability |
+| Lago | Usage metering and billing |
+
+Next-step framework integrations should be added as bridge docs/adapters, for example:
+
+- `bridges/langgraph/`
+- `bridges/crewai/`
+- `bridges/autogen/`
+- `bridges/langchain/`
+- `bridges/llamaindex/`
+- `bridges/semantic-kernel/`
+- `bridges/mastra/`
+
+Each bridge should document environment variables, base URLs, auth keys, example calls, and health checks. The framework app itself should remain in its own repo unless it becomes core runtime infrastructure.
+
+---
+
 ## Model gateway layer
 
-AGenNext Runner includes a model gateway layer powered by LiteLLM and Ollama. This layer gives agents and workflows a single OpenAI-compatible endpoint while routing requests to local models first and cloud providers only as fallbacks.
+AGenNext Runner includes a model gateway layer powered by LiteLLM and Ollama. This layer gives agents, workflows, and external runtimes a single OpenAI-compatible endpoint while routing requests to local models first and cloud providers only as fallbacks.
 
 The gateway is configured in `config.yaml`, deployed through `docker-compose.yml`, and backed by the local model pull/warmup script in `ollama-pull.sh`.
 
 ---
 
-## What customers call
+## What external runtimes call
 
-When Langflow flows are imported and the relevant services are configured, customers call Langflow flow endpoints:
-
-```bash
-curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} \
-  -H "Authorization: Bearer lf-their-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"input_value": "Review this contract for risk clauses"}'
-```
-
-For direct model access, developers can call the LiteLLM OpenAI-compatible endpoint:
+For direct model access, external frameworks can call the LiteLLM OpenAI-compatible endpoint:
 
 ```bash
 curl -X POST https://llm.openautonomyx.com/v1/chat/completions \
@@ -61,6 +109,15 @@ curl -X POST https://llm.openautonomyx.com/v1/chat/completions \
     "model": "ollama/qwen3:30b-a3b",
     "messages": [{"role": "user", "content": "Summarise this policy"}]
   }'
+```
+
+When Langflow flows are imported and the relevant services are configured, callers can run Langflow flow endpoints:
+
+```bash
+curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} \
+  -H "Authorization: Bearer lf-their-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"input_value": "Review this contract for risk clauses"}'
 ```
 
 ---
@@ -258,7 +315,19 @@ Before marketing this as a complete production product, validate and/or complete
 - Confirm Keycloak group creation provisions Lago customer, LiteLLM key, Langfuse project, and Langflow access if that remains the onboarding claim.
 - Run end-to-end tests for each public flow.
 - Load test Ollama memory behaviour on the target VPS.
-- Remove or clearly mark any aspirational pricing/tenant claims until automation is proven.
+- Keep framework-specific apps outside this repo unless they become core runtime bridges.
+
+---
+
+## Backup note
+
+The removed `autonomyx-deep-agent` module is preserved on branch:
+
+```text
+backup/autonomyx-deep-agent-before-removal
+```
+
+Use that branch if the old experimental module needs to be restored or migrated into a separate framework repo.
 
 ---
 
