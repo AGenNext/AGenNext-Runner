@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3.23
 
 ARG FRP_VERSION=0.62.0
 ARG TARGETARCH=amd64
