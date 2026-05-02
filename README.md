@@ -1,71 +1,78 @@
 # AGenNext Runner
 
-Runtime and bridge layer for AGenNext.
+Runtime bridge layer between **AGenNext Platform** and **AGenNext Kernel**.
 
-This repository is responsible for running, routing, observing, metering, and policy-checking agent and workflow execution. It should stay focused on runtime infrastructure and bridges to other runtimes, not on bundling standalone agent applications.
+AGenNext is structured as:
 
-The stack includes a model gateway layer for local and cloud LLM routing, plus supporting services for workflow execution, billing, tracing, monitoring, policy enforcement, and runtime integration. Framework-specific agent apps should live outside this repo and connect through documented bridge points.
+```text
+AGenNext Platform
+  └─ user selects framework / SDK / runtime style
+      ↓
+AGenNext Runner
+  └─ loads the matching runtime bridge
+      ↓
+AGenNext Kernel
+  └─ executes through the core kernel runtime
+```
+
+The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the runtime bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the core execution engine.
+
+This repository should stay focused on Runner responsibilities: runtime bridges, compose references, model access, routing, observability, usage metering, billing, policy checks, and integration with Kernel. Framework-specific apps should live outside this repo unless they become official bridge adapters.
 
 ---
 
-## Scope
+## Responsibilities
 
 AGenNext Runner is for:
 
-- Running core runtime services
-- Bridging to other runtimes and agent frameworks
+- Loading the correct runtime bridge selected by AGenNext Platform
+- Connecting selected frameworks and SDKs to AGenNext Kernel
 - Providing model access through LiteLLM and Ollama
-- Hosting/importing workflow templates through Langflow
-- Exposing runtime APIs for recommendation, feedback, identity, discovery, policy, and authorization once enabled
-- Collecting traces, usage, metrics, and billing events
-- Enforcing runtime policies through OpenFGA and OPA
+- Running workflow/runtime support services such as Langflow
+- Collecting traces, metrics, feedback, and billing events
+- Enforcing runtime policy and authorization through OPA and OpenFGA
+- Running the Docker Compose stack that connects Kernel, bridges, gateway, observability, and metering
 
 AGenNext Runner is not for:
 
 - Bundling one-off deep-agent applications
 - Keeping framework-specific experiments as first-class runtime code
-- Hardcoding a single agent architecture as the product
-- Mixing old Autonomyx-branded app modules into the runner layer
-
-Frameworks such as LangGraph, CrewAI, AutoGen, LangChain, LlamaIndex, Mastra, Semantic Kernel, or custom runtimes can be configured as next-step integrations through bridge adapters.
+- Hardcoding one framework as the product
+- Mixing old brand-specific app modules into the runner layer
 
 ---
 
-## Current status
+## AGenNext Kernel
 
-Implemented in this repository:
+**AGenNext Kernel is the kernel.**
 
-- LiteLLM model gateway configuration with local-first routing and cloud fallbacks
-- Ollama local model stack and pull script
-- Langflow service with flow files mounted from `flows/`
-- Lago billing services and LiteLLM callback integration files
-- Langfuse tracing configuration
-- Prometheus and Grafana monitoring
-- Uptime Kuma, GlitchTip, OpenTelemetry, Jaeger, VictoriaLogs, backup, pgAdmin, Infisical, SurrealDB
-- OpenFGA and OPA policy/authz services
-- Classifier, translator, and Playwright sidecar service definitions
-- Docker Compose deployment for the primary 96GB node
+Runner does not replace Kernel. Runner connects selected runtime bridges to Kernel.
 
-Known limitations in the current code:
+The runner includes an `agennext-kernel` Docker Compose service reference. It is intentionally a reference to a Kernel image/repository, not a copy of Kernel source code.
 
-- LiteLLM `additional_routers` are currently disabled in `config.yaml` because some modules crash on startup when connecting to dependent services.
-- `/recommend`, `/feedback`, `/translate`, and related router endpoints should be treated as present in code but not enabled by default.
-- Some Langflow flows call disabled endpoints, so they may need router re-enablement or URL changes before they run end to end.
-- Tenant onboarding is not fully automatic yet. Keycloak, Lago, LiteLLM, and Langfuse pieces exist in docs/config, but the full create-group-to-provision-everything path should be validated before production claims.
-- Per-tenant Langfuse isolation is partly implemented; `feedback.py` currently falls back to shared Langfuse project keys until tenant-specific key lookup is completed.
-- Logto references still exist in `.env.example` and docs even though the intended direction is Keycloak-based SSO.
+Expected compose pattern:
+
+```yaml
+agennext-kernel:
+  image: ${AGENNEXT_KERNEL_IMAGE:-ghcr.io/agennext/kernel:latest}
+  environment:
+    - KERNEL_REPO=${AGENNEXT_KERNEL_REPO:-https://github.com/AGenNext/Kernel}
+```
+
+Use this repo to configure, run, and connect Kernel. Keep Kernel implementation in the Kernel repository.
 
 ---
 
 ## Runtime bridge model
 
-External agent frameworks should connect to AGenNext Runner through stable bridge points instead of being copied into this repository.
+Platform chooses the framework or SDK. Runner loads the matching bridge. The bridge communicates with Kernel and shared runtime services.
 
 Primary bridge points:
 
 | Bridge point | Purpose |
 |---|---|
-| LiteLLM OpenAI-compatible API | Model access for external runtimes and agents |
+| AGenNext Kernel service | Core kernel execution target |
+| LiteLLM OpenAI-compatible API | Model access for Kernel, frameworks, SDKs, and agents |
 | Langflow API | Workflow execution and hosted flow templates |
 | Model recommender route | Runtime model selection once enabled |
 | Feedback route | Human/application feedback capture once enabled |
@@ -75,23 +82,53 @@ Primary bridge points:
 | Langfuse | Tracing, evaluation, and observability |
 | Lago | Usage metering and billing |
 
-Next-step framework integrations should be added as bridge docs/adapters, for example:
+Bridge adapters can be added as docs, compose snippets, or lightweight adapter services, for example:
 
-- `bridges/langgraph/`
-- `bridges/crewai/`
-- `bridges/autogen/`
-- `bridges/langchain/`
-- `bridges/llamaindex/`
-- `bridges/semantic-kernel/`
-- `bridges/mastra/`
+```text
+bridges/langgraph/
+bridges/crewai/
+bridges/autogen/
+bridges/langchain/
+bridges/llamaindex/
+bridges/semantic-kernel/
+bridges/mastra/
+bridges/custom-sdk/
+```
 
-Each bridge should document environment variables, base URLs, auth keys, example calls, and health checks. The framework app itself should remain in its own repo unless it becomes core runtime infrastructure.
+Each bridge should document environment variables, base URLs, auth keys, example calls, and health checks. Framework application code should remain in its own repo.
+
+---
+
+## Current status
+
+Implemented in this repository:
+
+- Docker Compose runtime stack
+- AGenNext Kernel compose reference service
+- LiteLLM model gateway configuration with local-first routing and cloud fallbacks
+- Ollama local model stack and pull script
+- Langflow service with flow files mounted from `flows/`
+- Lago billing services and LiteLLM callback integration files
+- Langfuse tracing configuration
+- Prometheus and Grafana monitoring
+- Uptime Kuma, GlitchTip, OpenTelemetry, Jaeger, VictoriaLogs, backup, pgAdmin, Infisical, SurrealDB
+- OpenFGA and OPA policy/authz services
+- Classifier, translator, and Playwright sidecar service definitions
+
+Known limitations:
+
+- LiteLLM `additional_routers` are currently disabled in `config.yaml` because some modules crash on startup when dependent services are unavailable.
+- `/recommend`, `/feedback`, `/translate`, and related router endpoints should be treated as present in code but not enabled by default.
+- Some Langflow flows call disabled endpoints, so they may need router re-enablement or URL changes before they run end to end.
+- Tenant onboarding is not fully automatic yet.
+- Per-tenant Langfuse isolation is partly implemented.
+- Logto references still exist in `.env.example` and docs even though the intended direction is Keycloak-based SSO.
 
 ---
 
 ## Model gateway layer
 
-AGenNext Runner includes a model gateway layer powered by LiteLLM and Ollama. This layer gives agents, workflows, and external runtimes a single OpenAI-compatible endpoint while routing requests to local models first and cloud providers only as fallbacks.
+AGenNext Runner includes a model gateway layer powered by LiteLLM and Ollama. This gives Kernel, bridges, workflows, SDKs, and external runtimes a single OpenAI-compatible endpoint while routing requests to local models first and cloud providers only as fallbacks.
 
 The gateway is configured in `config.yaml`, deployed through `docker-compose.yml`, and backed by the local model pull/warmup script in `ollama-pull.sh`.
 
@@ -99,10 +136,10 @@ The gateway is configured in `config.yaml`, deployed through `docker-compose.yml
 
 ## What external runtimes call
 
-For direct model access, external frameworks can call the LiteLLM OpenAI-compatible endpoint:
+For direct model access, bridges and frameworks can call the LiteLLM OpenAI-compatible endpoint:
 
 ```bash
-curl -X POST https://llm.openautonomyx.com/v1/chat/completions \
+curl -X POST https://llm.<your-domain>/v1/chat/completions \
   -H "Authorization: Bearer sk-your-litellm-key" \
   -H "Content-Type: application/json" \
   -d '{
@@ -114,36 +151,32 @@ curl -X POST https://llm.openautonomyx.com/v1/chat/completions \
 When Langflow flows are imported and the relevant services are configured, callers can run Langflow flow endpoints:
 
 ```bash
-curl -X POST https://flows.openautonomyx.com/api/v1/run/{flow_id} \
-  -H "Authorization: Bearer lf-their-api-key" \
+curl -X POST https://flows.<your-domain>/api/v1/run/{flow_id} \
+  -H "Authorization: Bearer lf-your-api-key" \
   -H "Content-Type: application/json" \
   -d '{"input_value": "Review this contract for risk clauses"}'
 ```
 
 ---
 
-## Operator endpoints
-
-Default public hostnames used by the stack:
+## Operator endpoint pattern
 
 ```text
-flows.openautonomyx.com    → Langflow workflows
-llm.openautonomyx.com      → LiteLLM gateway API
-traces.openautonomyx.com   → Langfuse tracing
-billing.openautonomyx.com  → Lago billing API/UI path
-metrics.openautonomyx.com  → Grafana dashboards
-uptime.openautonomyx.com   → Uptime Kuma
-errors.openautonomyx.com   → GlitchTip
-trust.openautonomyx.com    → Trust centre site
+flows.<your-domain>    → Langflow workflows
+llm.<your-domain>      → LiteLLM gateway API
+traces.<your-domain>   → Langfuse tracing
+billing.<your-domain>  → Lago billing API/UI path
+metrics.<your-domain>  → Grafana dashboards
+uptime.<your-domain>   → Uptime Kuma
+errors.<your-domain>   → GlitchTip
+trust.<your-domain>    → Trust centre site
 ```
 
-Several internal-only services are intentionally not exposed publicly, including SurrealDB, OPA, OpenFGA, classifier, translator, Playwright, and backup.
+Internal-only services include SurrealDB, OPA, OpenFGA, classifier, translator, Playwright, Kernel internals, and backup.
 
 ---
 
 ## Local models
-
-The local model configuration is defined in `config.yaml`, and the pull/warmup routine is in `ollama-pull.sh`.
 
 | Model | Intended tasks | Loading mode | Approx RAM |
 |---|---|---:|---:|
@@ -155,91 +188,22 @@ The local model configuration is defined in `config.yaml`, and the pull/warmup r
 | `ollama/gemma3:9b` | long-context documents | warm slot | 6GB |
 | `nomic-embed-text` | embeddings for RAG/scraping | always-on | ~274MB |
 
-The intended peak model RAM is about 84GB on a 96GB VPS. `docker-compose.yml` sets `OLLAMA_MEM_LIMIT` to 76GB by default, so tune this against actual workload and available memory.
-
----
-
-## Routing and fallbacks
-
-`config.yaml` uses LiteLLM with local models as primary routes and cloud providers as fallback routes.
-
-Examples:
-
-- `ollama/qwen3:30b-a3b` falls back to Groq, Vertex Claude/Gemini, Anthropic, and OpenAI models.
-- `ollama/qwen2.5-coder:32b` falls back to Groq, Vertex Gemini, OpenAI, and Vertex Claude.
-- `ollama/qwen2.5:14b` falls back to Groq, OpenAI mini, and Gemini Flash.
-
-Cloud provider keys are read from environment variables. No provider API keys should be committed.
-
 ---
 
 ## Langflow workflows
 
 Flow files live in `flows/` and are mounted into the Langflow container.
 
-Examples currently present include:
-
 | Flow | Purpose | Notes |
 |---|---|---|
-| `gateway-agent.json` | Detect language, recommend model, call LLM, capture feedback | Depends on `/recommend`, `/feedback`, and `/translate`; these routers are disabled by default in `config.yaml`. |
-| `code-review.json` | Structured code review through `ollama/qwen2.5-coder:32b` | More self-contained; still requires Langflow import and LiteLLM key setup. |
+| `gateway-agent.json` | Detect language, recommend model, call LLM, capture feedback | Depends on disabled routes unless re-enabled. |
+| `code-review.json` | Structured code review through `ollama/qwen2.5-coder:32b` | Requires Langflow import and LiteLLM key setup. |
 
-Treat flow JSON files as importable templates. Validate each flow in your Langflow version before offering it as a production endpoint.
-
----
-
-## Disabled custom routers
-
-The following files contain FastAPI routers or gateway extensions:
-
-- `recommender.py`
-- `feedback.py`
-- `openfga_authz.py`
-- `opa_middleware.py`
-- `agent_identity.py`
-- `agent_discovery.py`
-
-`config.yaml` currently comments out `general_settings.additional_routers` because the modules can crash on startup when dependent services are unavailable. Re-enable these only after confirming service availability and import-time behaviour.
-
-Recommended validation before re-enabling:
-
-```bash
-docker compose config
-docker compose up -d postgres classifier translator openfga opa litellm
-docker logs autonomyx-litellm --tail=200
-curl http://localhost:4000/health
-```
-
-Then re-enable one router at a time in `config.yaml` and restart LiteLLM.
-
----
-
-## Billing and tracing
-
-Lago services are defined in `docker-compose.yml`, including API, worker, clock, frontend, database, Redis, storage, and Gotenberg PDF support.
-
-`lago_callback.py` is mounted into the LiteLLM container and registered in `config.yaml` callbacks. This is intended to send LiteLLM usage events to Lago.
-
-Langfuse is configured through environment variables and LiteLLM callback settings. Current tenant isolation should be validated before claiming strict per-tenant trace separation. `feedback.py` currently contains a TODO for tenant-specific Langfuse key lookup.
-
----
-
-## Auth and policy
-
-The stack includes:
-
-- OpenFGA for relationship-based authorization
-- OPA for conditional policy checks
-- Keycloak variables and intended identity-provider direction
-- Legacy Logto/shared SSO variables still present in `.env.example` and docs
-
-Current state: Keycloak is the intended direction, but Logto references have not yet been fully removed. Do not claim the auth layer is fully migrated until the env/docs and deployment services are reconciled.
+Treat flow JSON files as importable templates. Validate each flow before offering it as a production endpoint.
 
 ---
 
 ## Deployment
-
-Primary deployment target: a Coolify-managed Docker Compose stack on a 96GB VPS.
 
 ```bash
 cp .env.example .env
@@ -265,75 +229,26 @@ curl http://127.0.0.1:4000/health
 
 ---
 
-## Repository structure
-
-```text
-.
-├── README.md
-├── SKILL.md
-├── docker-compose.yml
-├── config.yaml
-├── .env.example
-├── ollama-pull.sh
-├── lago_callback.py
-├── recommender.py
-├── feedback.py
-├── openfga_authz.py
-├── opa_middleware.py
-├── agent_identity.py
-├── agent_discovery.py
-├── flows/
-├── docs/
-├── references/
-├── classifier/
-├── translator/
-├── playwright/
-├── postgres/
-├── postgres-lago/
-├── opa/
-├── otel/
-├── grafana/
-├── jaeger/
-├── backup/
-├── frpc/
-├── trust/
-└── landing/
-```
-
----
-
 ## Production readiness checklist
 
-Before marketing this as a complete production product, validate and/or complete:
-
 - Re-enable and test `additional_routers` one by one.
-- Confirm `/recommend`, `/feedback`, and `/translate` are reachable from Langflow.
-- Update `gateway-agent.json` URLs if translation remains a sidecar-only service.
+- Confirm `/recommend`, `/feedback`, and `/translate` are reachable from Langflow before flows depend on them.
 - Finish tenant-specific Langfuse key lookup.
 - Validate Lago usage events from LiteLLM completions.
 - Reconcile Keycloak vs Logto references in `.env.example`, docs, and compose.
-- Confirm Keycloak group creation provisions Lago customer, LiteLLM key, Langfuse project, and Langflow access if that remains the onboarding claim.
-- Run end-to-end tests for each public flow.
+- Add bridge docs/compose snippets for Platform-selectable frameworks and SDKs.
+- Run end-to-end tests for each public flow and bridge.
 - Load test Ollama memory behaviour on the target VPS.
-- Keep framework-specific apps outside this repo unless they become core runtime bridges.
+- Keep framework-specific apps outside this repo unless they become official runtime bridges.
 
 ---
 
 ## Backup note
 
-The removed `autonomyx-deep-agent` module is preserved on branch:
+The removed old deep-agent module is preserved on branch:
 
 ```text
 backup/autonomyx-deep-agent-before-removal
 ```
 
 Use that branch if the old experimental module needs to be restored or migrated into a separate framework repo.
-
----
-
-## Contact
-
-- Platform: [openautonomyx.com](https://openautonomyx.com)
-- Skills: [agentnxxt/agentskills](https://github.com/agentnxxt/agentskills)
-- Email: chinmay@openautonomyx.com
-- Book: [cal.com/thefractionalpm](https://cal.com/thefractionalpm)
