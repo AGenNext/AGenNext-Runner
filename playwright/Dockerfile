@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
+FROM mcr.microsoft.com/playwright/python:v1.59.0-noble
 
 # OCI standard annotations
 LABEL org.opencontainers.image.title="autonomyx-playwright" \
