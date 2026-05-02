@@ -1,12 +1,12 @@
 # AGenNext Runner
 
-Framework-agnostic runtime bridge layer between **AGenNext Platform** and the infra-agnostic **AGenNext Kernel**.
+Framework-agnostic runtime bridge layer between the SDK-agnostic **AGenNext Platform** and the infra-agnostic **AGenNext Kernel**.
 
 AGenNext is structured as:
 
 ```text
 AGenNext Platform
-  └─ user selects framework / SDK / runtime style
+  └─ makes the system SDK agnostic by supporting all SDKs and user-facing integration styles
       ↓
 AGenNext Runner
   └─ makes the system framework agnostic by loading the matching runtime bridge
@@ -15,7 +15,7 @@ AGenNext Kernel
   └─ makes the system infrastructure agnostic by executing on any deployment target
 ```
 
-The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the framework-agnostic bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the infra-agnostic core execution engine and can be deployed anywhere.
+The Platform is the user-facing layer. It is SDK agnostic and supports all SDKs and integration styles. The user selects the SDK, framework, or runtime style there. Runner is the framework-agnostic bridge layer. It loads the corresponding runtime bridge and connects that selected framework/SDK path to AGenNext Kernel. Kernel is the infra-agnostic core execution engine and can be deployed anywhere.
 
 This repository should stay focused on Runner responsibilities: runtime bridges, compose references, model access, routing, observability, usage metering, billing, policy checks, and integration with Kernel. Framework-specific apps should live outside this repo unless they become official bridge adapters.
 
@@ -27,7 +27,7 @@ AGenNext Runner is for:
 
 - Making AGenNext framework agnostic
 - Loading the correct runtime bridge selected by AGenNext Platform
-- Connecting selected frameworks and SDKs to AGenNext Kernel
+- Connecting Platform-selected frameworks and SDKs to AGenNext Kernel
 - Providing model access through LiteLLM and Ollama
 - Running workflow/runtime support services such as Langflow
 - Collecting traces, metrics, feedback, and billing events
@@ -36,10 +36,21 @@ AGenNext Runner is for:
 
 AGenNext Runner is not for:
 
+- Owning SDK selection or user-facing SDK experience; that belongs in Platform
 - Bundling one-off deep-agent applications
 - Keeping framework-specific experiments as first-class runtime code
 - Hardcoding one framework as the product
 - Mixing old brand-specific app modules into the runner layer
+
+---
+
+## Layer responsibilities
+
+| Layer | Agnostic boundary | Responsibility |
+|---|---|---|
+| AGenNext Platform | SDK agnostic | Supports all SDKs and exposes the user-facing selection/configuration experience |
+| AGenNext Runner | Framework agnostic | Loads the selected framework/runtime bridge and connects it to Kernel |
+| AGenNext Kernel | Infrastructure agnostic | Executes on any deployment target selected by the operator/customer |
 
 ---
 
@@ -77,7 +88,7 @@ Use this repo to configure, run, and connect Kernel. Keep Kernel implementation 
 
 ## Runtime bridge model
 
-Platform chooses the framework or SDK. Runner loads the matching bridge. The bridge communicates with Kernel and shared runtime services.
+Platform chooses the SDK, framework, or runtime style. Runner loads the matching bridge. The bridge communicates with Kernel and shared runtime services.
 
 Primary bridge points:
 
@@ -251,6 +262,7 @@ curl http://127.0.0.1:4000/health
 - Validate Lago usage events from LiteLLM completions.
 - Reconcile Keycloak vs Logto references in `.env.example`, docs, and compose.
 - Add bridge docs/compose snippets for Platform-selectable frameworks and SDKs.
+- Validate SDK selection in Platform against bridge loading in Runner.
 - Validate local and remote Kernel deployment modes.
 - Run end-to-end tests for each public flow and bridge.
 - Load test Ollama memory behaviour on the target VPS.
