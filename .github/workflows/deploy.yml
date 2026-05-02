@@ -200,7 +200,7 @@ jobs:
 
     steps:
       - name: Inject secrets into server .env
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: vps.openautonomyx.com
           username: ubuntu
@@ -304,7 +304,7 @@ jobs:
             echo "Secrets injected into .env"
 
       - name: Verify server ready + update system packages
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: vps.openautonomyx.com
           username: ubuntu
@@ -347,7 +347,7 @@ jobs:
             docker compose version
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: vps.openautonomyx.com
           username: ubuntu
