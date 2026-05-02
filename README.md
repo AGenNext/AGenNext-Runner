@@ -1,6 +1,6 @@
 # AGenNext Runner
 
-Runtime bridge layer between **AGenNext Platform** and **AGenNext Kernel**.
+Framework-agnostic runtime bridge layer between **AGenNext Platform** and the infra-agnostic **AGenNext Kernel**.
 
 AGenNext is structured as:
 
@@ -9,13 +9,13 @@ AGenNext Platform
   └─ user selects framework / SDK / runtime style
       ↓
 AGenNext Runner
-  └─ loads the matching runtime bridge
+  └─ makes the system framework agnostic by loading the matching runtime bridge
       ↓
 AGenNext Kernel
-  └─ executes through the core kernel runtime
+  └─ makes the system infrastructure agnostic by executing on any deployment target
 ```
 
-The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the runtime bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the core execution engine and can be deployed anywhere.
+The Platform is the user-facing layer. The user selects the framework, SDK, or integration style there. Runner is the framework-agnostic bridge layer. It loads the corresponding bridge adapter and connects that selected runtime to AGenNext Kernel. Kernel is the infra-agnostic core execution engine and can be deployed anywhere.
 
 This repository should stay focused on Runner responsibilities: runtime bridges, compose references, model access, routing, observability, usage metering, billing, policy checks, and integration with Kernel. Framework-specific apps should live outside this repo unless they become official bridge adapters.
 
@@ -25,6 +25,7 @@ This repository should stay focused on Runner responsibilities: runtime bridges,
 
 AGenNext Runner is for:
 
+- Making AGenNext framework agnostic
 - Loading the correct runtime bridge selected by AGenNext Platform
 - Connecting selected frameworks and SDKs to AGenNext Kernel
 - Providing model access through LiteLLM and Ollama
@@ -46,9 +47,9 @@ AGenNext Runner is not for:
 
 **AGenNext Kernel is the kernel.**
 
-Kernel is deployment-target agnostic. It can run anywhere the operator chooses, including local Docker, a VPS, Kubernetes, private cloud, public cloud, edge nodes, customer infrastructure, or a managed AGenNext environment.
+Kernel makes AGenNext infrastructure agnostic. It can run anywhere the operator chooses, including local Docker, a VPS, Kubernetes, private cloud, public cloud, edge nodes, customer infrastructure, or a managed AGenNext environment.
 
-Runner does not replace Kernel and does not own Kernel source code. Runner connects Platform-selected runtime bridges to whichever Kernel deployment is configured.
+Runner does not replace Kernel and does not own Kernel source code. Runner makes the system framework agnostic by connecting Platform-selected runtime bridges to whichever Kernel deployment is configured.
 
 The runner includes an `agennext-kernel` Docker Compose service reference for local or co-located deployments. It is intentionally a reference to a Kernel image/repository, not a copy of Kernel source code.
 
@@ -82,7 +83,8 @@ Primary bridge points:
 
 | Bridge point | Purpose |
 |---|---|
-| AGenNext Kernel endpoint | Core kernel execution target, local or remote |
+| AGenNext Kernel endpoint | Infra-agnostic core kernel execution target, local or remote |
+| Runtime bridge adapters | Framework-agnostic connection layer for Platform-selected frameworks and SDKs |
 | LiteLLM OpenAI-compatible API | Model access for Kernel, frameworks, SDKs, and agents |
 | Langflow API | Workflow execution and hosted flow templates |
 | Model recommender route | Runtime model selection once enabled |
