@@ -1,8 +1,8 @@
-# Autonomyx Model Gateway
+# AGenNext Runner
 
-Self-hosted AI platform stack for running local LLMs behind a LiteLLM gateway, with Langflow workflows, usage billing, tracing, monitoring, policy enforcement, and operational tooling.
+Self-hosted runner stack for AGenNext agents and workflows, built on LiteLLM, Ollama, Langflow, billing, tracing, monitoring, policy enforcement, and operational tooling.
 
-This repository is an operator stack, not a single binary product. The core services and many integration files are present, but a few advanced API routes are intentionally disabled until their dependent services are stable.
+This repository is an operator stack, not a single binary product. It includes a model gateway layer for local and cloud LLM routing, plus the surrounding services needed to run agent workflows. The core services and many integration files are present, but a few advanced API routes are intentionally disabled until their dependent services are stable.
 
 ---
 
@@ -10,7 +10,7 @@ This repository is an operator stack, not a single binary product. The core serv
 
 Implemented in this repository:
 
-- LiteLLM gateway configuration with local-first routing and cloud fallbacks
+- LiteLLM model gateway configuration with local-first routing and cloud fallbacks
 - Ollama local model stack and pull script
 - Langflow service with flow files mounted from `flows/`
 - Lago billing services and LiteLLM callback integration files
@@ -29,6 +29,14 @@ Known limitations in the current code:
 - Tenant onboarding is not fully automatic yet. Keycloak, Lago, LiteLLM, and Langfuse pieces exist in docs/config, but the full create-group-to-provision-everything path should be validated before production claims.
 - Per-tenant Langfuse isolation is partly implemented; `feedback.py` currently falls back to shared Langfuse project keys until tenant-specific key lookup is completed.
 - Logto references still exist in `.env.example` and docs even though the intended direction is Keycloak-based SSO.
+
+---
+
+## Model gateway layer
+
+AGenNext Runner includes a model gateway layer powered by LiteLLM and Ollama. This layer gives agents and workflows a single OpenAI-compatible endpoint while routing requests to local models first and cloud providers only as fallbacks.
+
+The gateway is configured in `config.yaml`, deployed through `docker-compose.yml`, and backed by the local model pull/warmup script in `ollama-pull.sh`.
 
 ---
 
