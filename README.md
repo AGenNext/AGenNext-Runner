@@ -304,3 +304,16 @@ The Kernel handoff envelope includes `tenant_id`, `execution_id`, canonical `act
 - `GET /api/v1/frameworks` exposes supported adapters: LangChain, LangGraph, CrewAI, AutoGen, Semantic Kernel, LlamaIndex, Custom.
 - Runner loads tenant/agent/framework/policy/guardrail/tool/memory/rate-limit/approval config through `PlatformClient` and enforces before kernel invocation.
 - Kernel receives only normalized signed envelopes and remains framework-agnostic execution substrate.
+
+
+## AgentNext DX CLI
+
+```bash
+agentnext init support-agent --template langgraph-deepagent
+cd support-agent
+agentnext dev
+agentnext invoke "Search docs and create a ticket"
+agentnext package
+```
+
+See `docs/langgraph-deepagents-quickstart.md` for full quickstart.

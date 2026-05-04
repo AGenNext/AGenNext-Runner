@@ -1,0 +1,37 @@
+agent:
+  id: {{AGENT_ID}}
+  name: {{AGENT_NAME}}
+  framework: langgraph
+  sdk: deepagents
+  entrypoint: agent:agent
+
+runtime:
+  mode: runner_managed
+  memory_scope: tenant
+  streaming: true
+  human_in_the_loop: true
+
+authorization:
+  mode: managed
+  deny_by_default: true
+
+identity:
+  subject_type: agent
+  subject_id: {{AGENT_ID}}
+
+tools:
+  - id: search_docs
+    risk: low
+  - id: create_ticket
+    risk: medium
+    requires_approval: true
+
+protocols:
+  agent_client_protocol:
+    enabled: false
+  a2a:
+    enabled: false
+  agent_communication_protocol:
+    enabled: false
+  agent_network_protocol:
+    enabled: false
