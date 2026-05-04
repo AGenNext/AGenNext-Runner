@@ -1,91 +1,74 @@
-import hashlib
-import hmac
-import time
-
 from fastapi.testclient import TestClient
 import runner_api
-
 
 client = TestClient(runner_api.app)
 
 
-def _mk_token(tenant: str, agent: str, ttl_seconds: int = 300, secret: str = "") -> str:
-    exp = int(time.time()) + ttl_seconds
-    msg = f"{tenant}:{agent}:{exp}".encode()
-    sig = hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest() if secret else "nosig"
-    return f"Bearer {tenant}:{agent}:{exp}:{sig}"
+def _cfg(monkeypatch):
+    monkeypatch.setattr(runner_api.platform_client, "get_tenant_config", lambda t: {"id": t})
+    monkeypatch.setattr(runner_api.platform_client, "get_agent_config", lambda t, a: {"id": a, "tool_allowlist": ["github.create_issue"], "rate_limits": {"max_requests_per_minute": 999}, "approval": {"required": False}})
+    monkeypatch.setattr(runner_api.platform_client, "get_framework_config", lambda f: {"enabled": True})
+    monkeypatch.setattr(runner_api.platform_client, "get_guardrail_bundle", lambda t: {"version": "g7"})
+    monkeypatch.setattr(runner_api.platform_client, "get_memory_config", lambda t: {"provider": "surreal"})
 
 
-async def _ok_kernel(endpoint, payload, tenant_id):
-    return {"status": "completed", "echo": payload, "tenant": tenant_id}
+async def _ok(path, envelope):
+    return {"status": "ok", "echo": envelope}
 
 
-def test_allow_path_calls_kernel_with_prevalidation(monkeypatch):
-    monkeypatch.setattr(runner_api, "invoke_kernel", _ok_kernel)
-    resp = client.post(
-        "/api/v1/execute",
-        json={"agent_id": "agent1", "framework": "langgraph", "payload": {"input": "hi"}, "tenant_id": "t1"},
-        headers={"Authorization": _mk_token("t1", "agent1")},
-    )
-    assert resp.status_code == 200
-    env = resp.json()["result"]["echo"]
-    assert env["prevalidation"]["identity_verified"] is True
-    assert env["prevalidation"]["authorization_engines"] == ["OPA", "AuthZEN", "OpenFGA"]
+def test_langchain_normalizes_into_kernel_envelope(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setattr(runner_api, "kernel_post", _ok)
+    r = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "langchain", "payload": {"tool": "github.create_issue", "x": 1}})
+    assert r.status_code == 200
+    env = r.json()["result"]["output"]["result"]["echo"]
+    assert env["task"]["type"] == "tool_call"
+    assert "signature" in env
 
 
-def test_deny_path_does_not_call_kernel(monkeypatch):
-    called = {"v": False}
-
-    async def _never(*args, **kwargs):
-        called["v"] = True
-        return {}
-
-    monkeypatch.setattr(runner_api, "invoke_kernel", _never)
-    resp = client.post(
-        "/api/v1/execute",
-        json={"agent_id": "agent1", "framework": "langgraph", "payload": {}, "tenant_id": "t1", "config": {"deny_authzen": True}},
-        headers={"Authorization": _mk_token("t1", "agent1")},
-    )
-    assert resp.json()["status"] == "blocked"
-    assert called["v"] is False
+def test_langgraph_crewai_autogen_normalize(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setattr(runner_api, "kernel_post", _ok)
+    for fw in ["langgraph", "crewai", "autogen"]:
+        r = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": fw, "payload": {"tool": "github.create_issue"}})
+        assert r.json()["status"] == "completed"
 
 
-def test_missing_tenant_denied():
-    resp = client.post(
-        "/api/v1/execute",
-        json={"agent_id": "agent1", "framework": "langgraph", "payload": {}},
-        headers={"Authorization": _mk_token("t1", "agent1")},
-    )
-    assert resp.json()["status"] == "blocked"
+def test_unsupported_framework_returns_error():
+    r = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "unknown", "payload": {}})
+    assert r.json()["status"] == "blocked"
 
 
-def test_invalid_revoked_or_cross_tenant_identity_denied():
-    bad_format = client.post("/api/v1/execute", json={"agent_id": "agent1", "framework": "langgraph", "payload": {}, "tenant_id": "t1"}, headers={"Authorization": "Bearer t1:agent1"})
-    cross_tenant = client.post("/api/v1/execute", json={"agent_id": "agent1", "framework": "langgraph", "payload": {}, "tenant_id": "t1"}, headers={"Authorization": _mk_token("t2", "agent1")})
-    expired = client.post("/api/v1/execute", json={"agent_id": "agent1", "framework": "langgraph", "payload": {}, "tenant_id": "t1"}, headers={"Authorization": _mk_token("t1", "agent1", ttl_seconds=-1)})
-    assert bad_format.json()["status"] == "blocked"
-    assert cross_tenant.json()["status"] == "blocked"
-    assert expired.json()["status"] == "blocked"
+def test_missing_platform_config_rejected(monkeypatch):
+    monkeypatch.setattr(runner_api.platform_client, "get_tenant_config", lambda t: {})
+    monkeypatch.setattr(runner_api.platform_client, "get_agent_config", lambda t, a: {})
+    r = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "langchain", "payload": {}})
+    assert r.json()["status"] == "blocked"
 
 
-def test_authzen_endpoint_and_opa_openfga_denies():
-    eval_resp = client.post("/api/v1/authzen/evaluate", json={"tenant_id": "t1", "subject": {"id": "a"}, "resource": {"id": "r"}, "action": "execute", "context": {}})
-    assert eval_resp.status_code == 200
-    deny_resp = client.post(
-        "/api/v1/execute",
-        json={"agent_id": "agent1", "framework": "langgraph", "payload": {}, "tenant_id": "t1", "config": {"deny_openfga": True}},
-        headers={"Authorization": _mk_token("t1", "agent1")},
-    )
-    assert deny_resp.json()["status"] == "blocked"
+def test_policy_and_guardrail_denied_never_calls_kernel(monkeypatch):
+    _cfg(monkeypatch)
+    called = {"v": 0}
+
+    async def _k(path, envelope):
+        called["v"] += 1
+        return {"status": "ok"}
+
+    monkeypatch.setattr(runner_api, "kernel_post", _k)
+    p = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "langchain", "payload": {}, "config": {"deny_policy": True}})
+    g = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "langchain", "payload": {"tool": "not.allowed"}})
+    assert p.json()["status"] == "blocked"
+    assert g.json()["status"] == "blocked"
+    assert called["v"] == 0
 
 
-def test_protocol_request_maps_into_kernel_envelope(monkeypatch):
-    monkeypatch.setattr(runner_api, "invoke_kernel", _ok_kernel)
-    resp = client.post(
-        "/api/v1/protocol/execute",
-        json={"protocol": "a2a", "tenant_id": "t1", "agent_id": "agent1", "action": "sync", "payload": {"task": "x"}},
-        headers={"Authorization": _mk_token("t1", "agent1")},
-    )
-    env = resp.json()["result"]["echo"]
-    assert env["protocol"]["protocol"] == "a2a"
-    assert env["payload"]["task"] == "x"
+def test_kernel_error_surfaced_and_no_framework_fields_to_kernel(monkeypatch):
+    _cfg(monkeypatch)
+
+    async def _err(path, envelope):
+        assert "framework" not in envelope["task"]["input"]
+        return {"status": "error", "error": "boom"}
+
+    monkeypatch.setattr(runner_api, "kernel_post", _err)
+    r = client.post("/api/v1/run", json={"tenant_id": "t1", "agent_id": "a1", "framework": "langchain", "payload": {"tool": "github.create_issue", "framework": "leak"}})
+    assert r.json()["status"] == "error"

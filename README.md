@@ -296,3 +296,11 @@ The Kernel handoff envelope includes `tenant_id`, `execution_id`, canonical `act
 - Runtime auth supports signed bearer tokens (`tenant:agent:exp:sig`) with HMAC verification via `IDENTITY_SHARED_SECRET`; cross-tenant and expired identities are rejected before Kernel invocation.
 - AuthZEN/OpenFGA/OPA adapters support remote endpoints (`AUTHZEN_ENDPOINT`, `OPENFGA_ENDPOINT`, `OPA_ENDPOINT`) with fail-closed behavior by default.
 - Kernel handoff includes execution and prevalidation metadata, and kernel calls carry `X-Tenant-ID` and `X-Execution-ID` headers for traceability across distributed deployments.
+
+
+## Runner Framework Boundary API
+- `POST /api/v1/run` and `POST /api/v1/run/stream` accept framework runtime requests and normalize into signed kernel envelopes.
+- `POST /api/v1/frameworks/{framework}/run` provides framework-specific ingress while preserving common enforcement.
+- `GET /api/v1/frameworks` exposes supported adapters: LangChain, LangGraph, CrewAI, AutoGen, Semantic Kernel, LlamaIndex, Custom.
+- Runner loads tenant/agent/framework/policy/guardrail/tool/memory/rate-limit/approval config through `PlatformClient` and enforces before kernel invocation.
+- Kernel receives only normalized signed envelopes and remains framework-agnostic execution substrate.
