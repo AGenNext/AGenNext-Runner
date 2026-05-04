@@ -1,0 +1,156 @@
+# Auto-merge Dependabot PRs workflow
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["PR Checks"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  # Wait for PR checks to pass, then auto-merge
+  dependabot-merge:
+    name: Auto-merge Dependabot PR
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: read
+
+    steps:
+      - name: Fetch PR metadata
+        id: metadata
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const commitMsg = pr.head.ref;
+            const versionUpdate = /dependabot\/pip\/(.+)-(\d+\.\d+\.\d+)/.exec(commitMsg);
+            let updateType = 'unknown';
+            if (versionUpdate) {
+              const pkg = versionUpdate[1];
+              const version = versionUpdate[2];
+              const parts = version.split('.');
+              if (parts[parts.length-1] === '0' && parts[parts.length-2] === '0') {
+                updateType = 'major';
+              } else if (parts[parts.length-1] === '0') {
+                updateType = 'minor';
+              } else {
+                updateType = 'patch';
+              }
+            }
+            return {
+              update_type: updateType,
+              pr_number: pr.number,
+              title: pr.title,
+              url: pr.html_url
+            };
+
+      - name: Check if all checks passed
+        id: check_status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Get all statuses for this commit
+            const { data: commit } = await github.rest.repos.getCommit({
+              owner, repo,
+              ref: context.payload.pull_request.head.sha
+            });
+            
+            // Check if there are any failed statuses
+            const statuses = commit.commitures?.[0]?.statuses?.data || [];
+            const hasFailedStatus = statuses.some(s => s.state === 'failure' || s.state === 'error');
+            
+            // Check if there are pending checks
+            const hasPendingChecks = statuses.some(s => s.state === 'pending');
+            
+            return {
+              all_passed: !hasFailedStatus && !hasPendingChecks,
+              statuses: statuses.map(s => ({ context: s.context, state: s.state }))
+            };
+
+      - name: Approve PR
+        if: steps.check_status.outputs.all_passed == 'true'
+        run: |
+          gh pr review --approve "$PR_URL" --body "LGTM 🤖"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        if: steps.check_status.outputs.all_passed == 'true'
+        run: |
+          gh pr merge --admin --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add success reaction
+        if: steps.check_status.outputs.all_passed == 'true'
+        run: |
+          gh api -X POST repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/reactions --data '{"content":"white_check_mark"}"'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add waiting reaction if checks pending
+        if: steps.check_status.outputs.all_passed != 'true'
+        run: |
+          gh api -X POST repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/reactions --data '{"content":"hourglass_flowing_sand"}"'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Fallback: Check on workflow completion
+  check-workflow:
+    name: Check from workflow run
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Find PR from workflow
+        id: find_pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflowRun = context.payload.workflow_run;
+            
+            // Get the head branch of the workflow run
+            const branch = workflowRun.head_branch;
+            
+            // Check if this is a dependabot PR
+            if (branch.startsWith('dependabot/')) {
+              // Find the PR for this branch
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                head: branch
+              });
+              
+              if (prs.length > 0 && prs[0].user.login === 'dependabot[bot]') {
+                return {
+                  found: true,
+                  pr_number: prs[0].number,
+                  pr_url: prs[0].html_url
+                };
+              }
+            }
+            return { found: false };
+
+      - name: Approve and merge if dependabot
+        if: steps.find_pr.outputs.found == 'true'
+        run: |
+          gh pr review --approve "$PR_URL" --body "LGTM 🤖"
+          gh pr merge --admin --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ steps.find_pr.outputs.pr_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
