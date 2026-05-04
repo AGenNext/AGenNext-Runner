@@ -41,19 +41,19 @@ jobs:
           rm -f .env.ci
 
       - name: Lint Dockerfiles with hadolint
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: playwright/Dockerfile
           failure-threshold: error
 
       - name: Lint classifier Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: classifier/Dockerfile
           failure-threshold: error
 
       - name: Lint translator Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: translator/Dockerfile
           failure-threshold: error
