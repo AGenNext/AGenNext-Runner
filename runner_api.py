@@ -1,216 +1,157 @@
 #!/usr/bin/env python3
-"""
-AGenNext Runner - Runtime HTTP API
-All adapters for policy, guardrails, framework, memory, tools, traces
-"""
-
 import os
-import json
-import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+import httpx
+from fastapi import FastAPI, Header
+from pydantic import BaseModel, Field
 
-from fastapi import FastAPI, HTTPException, Header, Depends
-from pydantic import BaseModel
-import uvicorn
+from runner.adapters import get_adapter, list_frameworks
+from runner.core import (
+    EnvelopeSigner,
+    GuardrailEngine,
+    PlatformClient,
+    PolicyEngine,
+    RunnerError,
+    SimpleRateLimiter,
+    new_execution_id,
+    now_iso,
+)
 
-app = FastAPI(title="AGenNext Runner", version="1.0.0")
+app = FastAPI(title="AGenNext Runner", version="2.0.0")
 
-# --- Configuration ---
 KERNEL_ENDPOINT = os.environ.get("KERNEL_ENDPOINT", "http://localhost:8080")
-PLATFORM_CONFIG_PATH = os.environ.get("PLATFORM_CONFIG_PATH", "/data/config")
+RUNNER_ID = os.environ.get("RUNNER_ID", "runner_default")
+RUNNER_SIGNING_SECRET = os.environ.get("RUNNER_SIGNING_SECRET", "dev-runner-secret")
+PROD_MODE = os.environ.get("RUNNER_ENV", "dev") == "prod"
 
-# --- Models ---
-class ExecuteRequest(BaseModel):
+platform_client = PlatformClient()
+policy_engine = PolicyEngine()
+guardrails = GuardrailEngine()
+signer = EnvelopeSigner(RUNNER_SIGNING_SECRET)
+limiter = SimpleRateLimiter()
+
+
+class RunRequest(BaseModel):
+    tenant_id: str
     agent_id: str
-    framework: str  # langgraph, crewai, autogen, etc.
-    payload: Dict[str, Any]
-    config: Optional[Dict[str, Any]] = {}
-    tenant_id: Optional[str] = None
+    framework: str
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    stream: bool = False
+    config: Dict[str, Any] = Field(default_factory=dict)
 
-class ExecuteResponse(BaseModel):
+
+class RunResponse(BaseModel):
     execution_id: str
     status: str
-    result: Optional[Dict[str, Any]] = None
+    result: Dict[str, Any] = Field(default_factory=dict)
 
-# --- Adapters ---
-class PolicyAdapter:
-    """OPA policy loading and enforcement."""
-    
-    def __init__(self):
-        self.policies = {}
-        self._load_policies()
-    
-    def _load_policies(self):
-        """Load policies from config."""
-        # Load from rego files
-        rego_path = os.path.join(os.path.dirname(__file__), "opa", "policy.rego")
-        if os.path.exists(rego_path):
-            with open(rego_path) as f:
-                self.policies["default"] = f.read()
-    
-    def enforce(self, tenant_id: str, action: Dict) -> Dict:
-        """Enforce OPA policies before execution."""
-        # Simplified: check against loaded policies
-        # Real impl would use opa-python library
-        return {"allowed": True, "reason": "allowed"}
-    
-    async def enforce_async(self, tenant_id: str, action: Dict) -> Dict:
-        """Async policy enforcement."""
-        return self.enforce(tenant_id, action)
 
-class GuardrailAdapter:
-    """Input/output filtering."""
-    
-    def filter_input(self, content: str) -> str:
-        """Filter sensitive content from input."""
-        # Simple placeholder - real impl would use regex/categories
-        return content
-    
-    def filter_output(self, content: str) -> str:
-        """Filter sensitive content from output."""
-        return content
+async def kernel_post(path: str, envelope: Dict[str, Any]) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=30) as client:
+        try:
+            r = await client.post(f"{KERNEL_ENDPOINT}{path}", json=envelope, headers={"X-Tenant-ID": envelope["tenant_id"], "X-Execution-ID": envelope["execution_id"]})
+            if r.status_code >= 400:
+                return {"status": "error", "error": f"kernel_http_{r.status_code}"}
+            return r.json()
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
 
-class FrameworkAdapter:
-    """Framework translation to Kernel payload."""
-    
-    def translate(self, framework: str, payload: Dict, config: Dict) -> Dict:
-        """Translate framework input to Kernel execution."""
-        if framework == "langgraph":
-            return self._translate_langgraph(payload, config)
-        elif framework == "crewai":
-            return self._translate_crewai(payload, config)
-        elif framework == "autogen":
-            return self._translate_autogen(payload, config)
-        else:
-            return payload
-    
-    def _translate_langgraph(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "langgraph", "graph": payload}
-    
-    def _translate_crewai(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "crewai", "crew": payload}
-    
-    def _translate_autogen(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "autogen", "agents": payload}
 
-class MemoryAdapter:
-    """Memory persistence configuration."""
-    
-    def get_config(self, tenant_id: str) -> Dict:
-        """Get memory config for tenant."""
-        return {"provider": "surrealdb", "tenant_id": tenant_id}
+async def run_pipeline(req: RunRequest) -> Dict[str, Any]:
+    execution_id = new_execution_id()
+    tenant_cfg = platform_client.get_tenant_config(req.tenant_id)
+    agent_cfg = platform_client.get_agent_config(req.tenant_id, req.agent_id)
+    framework_cfg = platform_client.get_framework_config(req.framework)
+    if not tenant_cfg or not agent_cfg:
+        return {"blocked": True, "reason": "missing_platform_config", "execution_id": execution_id}
 
-class TraceAdapter:
-    """Observability tracing."""
-    
-    def trace(self, event: Dict):
-        """Record trace event."""
-        # Would send to Langfuse/Jaeger
-        pass
+    limits = platform_client.get_rate_limits(req.tenant_id, req.agent_id)
+    if not limiter.allow(f"{req.tenant_id}:{req.agent_id}", limits.get("max_requests_per_minute", 60)):
+        return {"blocked": True, "reason": "rate_limit_exceeded", "execution_id": execution_id}
 
-# Initialize adapters
-policy_adapter = PolicyAdapter()
-guardrail_adapter = GuardrailAdapter()
-framework_adapter = FrameworkAdapter()
-memory_adapter = MemoryAdapter()
-trace_adapter = TraceAdapter()
+    approval = platform_client.get_approval_requirements(req.tenant_id, req.agent_id)
+    if approval.get("required") and req.config.get("approval_state") != "APPROVED":
+        return {"blocked": True, "reason": "PENDING_APPROVAL", "execution_id": execution_id}
 
-# --- Helpers ---
-async def invoke_kernel(endpoint: str, payload: Dict, tenant_id: str) -> Dict:
-    """Invoke Kernel with pre-validated payload."""
-    import urllib.request
-    import urllib.parse
-    
-    url = f"{KERNEL_ENDPOINT}{endpoint}"
-    headers = {
-        "Content-Type": "application/json",
-        "X-Tenant-ID": tenant_id
+    policy = policy_engine.evaluate(req.model_dump(), prod_mode=PROD_MODE)
+    if not policy["allowed"]:
+        return {"blocked": True, "reason": policy["reason"], "execution_id": execution_id}
+
+    tools = platform_client.get_tool_allowlist(req.tenant_id, req.agent_id)
+    input_guard = guardrails.check_input(req.payload, tools)
+    if not input_guard.valid:
+        return {"blocked": True, "reason": input_guard.reason, "execution_id": execution_id}
+
+    adapter = get_adapter(req.framework)
+    v = await adapter.validate_request(req.model_dump(), framework_cfg)
+    if not v.valid:
+        return {"blocked": True, "reason": v.reason, "execution_id": execution_id}
+    task = await adapter.normalize(req.model_dump(), framework_cfg)
+
+    envelope = {
+        "tenant_id": req.tenant_id,
+        "execution_id": execution_id,
+        "agent_id": req.agent_id,
+        "runner_id": RUNNER_ID,
+        "task": task,
+        "policy_verdict": {
+            "allowed": True,
+            "policy_version": policy["version"],
+            "checked_by": "runner",
+            "checked_at": now_iso(),
+            "evidence": {"reason": policy["reason"]},
+        },
+        "guardrail_verdict": {
+            "input_allowed": True,
+            "output_required": True,
+            "guardrail_version": platform_client.get_guardrail_bundle(req.tenant_id).get("version", "dev-local"),
+            "evidence": {},
+        },
+        "trace_context": {"framework": req.framework},
+        "memory_context": platform_client.get_memory_config(req.tenant_id),
     }
-    
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    
-    try:
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.loads(response.read())
-    except Exception as e:
-        return {"error": str(e)}
+    envelope["signature"] = signer.sign(envelope)
+    return {"blocked": False, "envelope": envelope, "adapter": adapter, "execution_id": execution_id}
 
-# --- Routes ---
+
 @app.get("/health")
 async def health():
-    """Health check."""
-    return {"status": "healthy", "adapters": "loaded"}
+    return {"status": "ok", "service": "runner"}
 
-@app.post("/api/v1/execute", response_model=ExecuteResponse)
-async def execute(request: ExecuteRequest, x_tenant_id: str = Header(None)):
-    """
-    Execute agent with all adapters enforcing first.
-    
-    Flow:
-    1. Platform defines config
-    2. Runner enforces (policy, guardrails)
-    3. Runner translates framework
-    4. Runner invokes Kernel
-    """
-    tenant_id = request.tenant_id or x_tenant_id or "default"
-    execution_id = str(uuid.uuid4())
-    
-    # 1. Policy enforcement
-    policy_result = await policy_adapter.enforce_async(tenant_id, request.payload)
-    if not policy_result.get("allowed"):
-        return ExecuteResponse(
-            execution_id=execution_id,
-            status="blocked",
-            result={"reason": policy_result.get("reason")}
-        )
-    
-    # 2. Guardrails
-    filtered_payload = {
-        **request.payload,
-        "input": guardrail_adapter.filter_input(request.payload.get("input", ""))
-    }
-    
-    # 3. Framework translation
-    kernel_payload = framework_adapter.translate(
-        request.framework,
-        filtered_payload,
-        request.config or {}
-    )
-    kernel_payload["execution_id"] = execution_id
-    kernel_payload["tenant_id"] = tenant_id
-    
-    # 4. Invoke Kernel
-    result = await invoke_kernel("/api/v1/execute", kernel_payload, tenant_id)
-    
-    # 5. Guard output
-    if result.get("result"):
-        result["result"] = guardrail_adapter.filter_output(str(result["result"]))
-    
-    # 6. Trace
-    trace_adapter.trace({
-        "execution_id": execution_id,
-        "tenant_id": tenant_id,
-        "framework": request.framework,
-        "status": "completed" if result.get("status") != "error" else "failed"
-    })
-    
-    return ExecuteResponse(
-        execution_id=execution_id,
-        status=result.get("status", "completed"),
-        result=result
-    )
 
-@app.get("/api/v1/config/{tenant_id}")
-async def get_config(tenant_id: str):
-    """Get Runner config for tenant."""
-    return {
-        "tenant_id": tenant_id,
-        "memory": memory_adapter.get_config(tenant_id),
-        "kernel_endpoint": KERNEL_ENDPOINT
-    }
+@app.get("/api/v1/frameworks")
+async def frameworks():
+    return {"frameworks": list_frameworks()}
 
-if __name__ == "__main__":
-    port = int(os.environ.get("RUNNER_PORT", "8081"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+
+@app.post("/api/v1/frameworks/{framework}/run", response_model=RunResponse)
+async def framework_run(framework: str, request: RunRequest):
+    request.framework = framework
+    return await run(request)
+
+
+@app.post("/api/v1/run", response_model=RunResponse)
+async def run(request: RunRequest):
+    try:
+        p = await run_pipeline(request)
+    except RunnerError as exc:
+        return RunResponse(execution_id=new_execution_id(), status="blocked", result={"reason": str(exc)})
+    if p["blocked"]:
+        return RunResponse(execution_id=p["execution_id"], status="blocked", result={"reason": p["reason"]})
+
+    kernel = await kernel_post("/api/v1/execute/stream" if request.stream else "/api/v1/execute", p["envelope"])
+    if kernel.get("status") == "error":
+        return RunResponse(execution_id=p["execution_id"], status="error", result=kernel)
+
+    out_guard = guardrails.check_output(kernel)
+    if out_guard["blocked"]:
+        return RunResponse(execution_id=p["execution_id"], status="blocked", result={"reason": out_guard["reason"]})
+
+    output = await p["adapter"].denormalize_result(kernel, platform_client.get_framework_config(request.framework))
+    return RunResponse(execution_id=p["execution_id"], status="completed", result={"output": output})
+
+
+@app.post("/api/v1/run/stream", response_model=RunResponse)
+async def run_stream(request: RunRequest):
+    request.stream = True
+    return await run(request)
