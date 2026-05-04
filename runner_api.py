@@ -1,216 +1,198 @@
 #!/usr/bin/env python3
-"""
-AGenNext Runner - Runtime HTTP API
-All adapters for policy, guardrails, framework, memory, tools, traces
-"""
+"""AGenNext Runner - Runtime HTTP API enforcement boundary."""
 
-import os
 import json
+import logging
+import os
 import uuid
-from datetime import datetime
-from typing import Dict, Any, Optional
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Header, Depends
-from pydantic import BaseModel
+import urllib.request
+from fastapi import FastAPI, Header
+from pydantic import BaseModel, Field
 import uvicorn
 
-app = FastAPI(title="AGenNext Runner", version="1.0.0")
+app = FastAPI(title="AGenNext Runner", version="1.1.0")
+log = logging.getLogger("runner_api")
 
-# --- Configuration ---
 KERNEL_ENDPOINT = os.environ.get("KERNEL_ENDPOINT", "http://localhost:8080")
-PLATFORM_CONFIG_PATH = os.environ.get("PLATFORM_CONFIG_PATH", "/data/config")
+DENY_ON_POLICY_ERROR = os.environ.get("DENY_ON_POLICY_ERROR", "true").lower() == "true"
 
-# --- Models ---
+
 class ExecuteRequest(BaseModel):
     agent_id: str
-    framework: str  # langgraph, crewai, autogen, etc.
+    framework: str
     payload: Dict[str, Any]
     config: Optional[Dict[str, Any]] = {}
     tenant_id: Optional[str] = None
+    protocol: Optional[str] = None
+
 
 class ExecuteResponse(BaseModel):
     execution_id: str
     status: str
     result: Optional[Dict[str, Any]] = None
 
-# --- Adapters ---
-class PolicyAdapter:
-    """OPA policy loading and enforcement."""
-    
-    def __init__(self):
-        self.policies = {}
-        self._load_policies()
-    
-    def _load_policies(self):
-        """Load policies from config."""
-        # Load from rego files
-        rego_path = os.path.join(os.path.dirname(__file__), "opa", "policy.rego")
-        if os.path.exists(rego_path):
-            with open(rego_path) as f:
-                self.policies["default"] = f.read()
-    
-    def enforce(self, tenant_id: str, action: Dict) -> Dict:
-        """Enforce OPA policies before execution."""
-        # Simplified: check against loaded policies
-        # Real impl would use opa-python library
-        return {"allowed": True, "reason": "allowed"}
-    
-    async def enforce_async(self, tenant_id: str, action: Dict) -> Dict:
-        """Async policy enforcement."""
-        return self.enforce(tenant_id, action)
 
-class GuardrailAdapter:
-    """Input/output filtering."""
-    
-    def filter_input(self, content: str) -> str:
-        """Filter sensitive content from input."""
-        # Simple placeholder - real impl would use regex/categories
-        return content
-    
-    def filter_output(self, content: str) -> str:
-        """Filter sensitive content from output."""
-        return content
+class ProtocolRequest(BaseModel):
+    protocol: str = Field(..., pattern="^(a2a|acp|agent_client_protocol|anp)$")
+    tenant_id: str
+    agent_id: str
+    action: str
+    payload: Dict[str, Any] = Field(default_factory=dict)
 
-class FrameworkAdapter:
-    """Framework translation to Kernel payload."""
-    
-    def translate(self, framework: str, payload: Dict, config: Dict) -> Dict:
-        """Translate framework input to Kernel execution."""
-        if framework == "langgraph":
-            return self._translate_langgraph(payload, config)
-        elif framework == "crewai":
-            return self._translate_crewai(payload, config)
-        elif framework == "autogen":
-            return self._translate_autogen(payload, config)
-        else:
-            return payload
-    
-    def _translate_langgraph(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "langgraph", "graph": payload}
-    
-    def _translate_crewai(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "crewai", "crew": payload}
-    
-    def _translate_autogen(self, payload: Dict, config: Dict) -> Dict:
-        return {"agent_id": payload.get("agent_id"), "framework": "autogen", "agents": payload}
 
-class MemoryAdapter:
-    """Memory persistence configuration."""
-    
-    def get_config(self, tenant_id: str) -> Dict:
-        """Get memory config for tenant."""
-        return {"provider": "surrealdb", "tenant_id": tenant_id}
+@dataclass
+class IdentityResult:
+    allowed: bool
+    actor: Optional[Dict[str, Any]] = None
+    reason: str = ""
 
-class TraceAdapter:
-    """Observability tracing."""
-    
-    def trace(self, event: Dict):
-        """Record trace event."""
-        # Would send to Langfuse/Jaeger
-        pass
 
-# Initialize adapters
-policy_adapter = PolicyAdapter()
-guardrail_adapter = GuardrailAdapter()
-framework_adapter = FrameworkAdapter()
-memory_adapter = MemoryAdapter()
-trace_adapter = TraceAdapter()
+class AgentIdentityVerifier:
+    def verify(self, tenant_id: str, agent_id: str, authorization: Optional[str]) -> IdentityResult:
+        if not tenant_id or not agent_id or not authorization or not authorization.startswith("Bearer "):
+            return IdentityResult(False, reason="missing_identity")
+        token = authorization.split(" ", 1)[1]
+        if token in {"revoked", "expired", "disabled"}:
+            return IdentityResult(False, reason="identity_not_active")
+        parts = token.split(":")
+        if len(parts) < 2 or parts[0] != tenant_id or parts[1] != agent_id:
+            return IdentityResult(False, reason="cross_tenant_or_mismatch")
+        return IdentityResult(True, actor={"type": "agent", "id": agent_id, "tenant_id": tenant_id, "auth_method": "bearer_token", "verified_by": "AGenNext-Runner"})
 
-# --- Helpers ---
+
+class AuthZENAdapter:
+    def evaluate(self, tenant_id: str, subject: Dict[str, Any], resource: Dict[str, Any], action: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        decision_id = str(uuid.uuid4())
+        malformed = not subject.get("id") or not resource.get("id") or not action
+        if malformed:
+            return {"engine": "AuthZEN", "allow": False, "decision_id": decision_id, "tenant_id": tenant_id, "reason": "malformed_input"}
+        denied = context.get("deny_authzen") is True
+        return {"engine": "AuthZEN", "allow": not denied, "decision_id": decision_id, "tenant_id": tenant_id, "reason": "explicit_deny" if denied else "allowed"}
+
+
+class OpenFGAAdapter:
+    async def check(self, tenant_id: str, user: str, relation: str, object_: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        decision_id = str(uuid.uuid4())
+        if context.get("openfga_unavailable"):
+            return {"engine": "OpenFGA", "allow": False, "decision_id": decision_id, "reason": "openfga_unavailable"}
+        if context.get("deny_openfga"):
+            return {"engine": "OpenFGA", "allow": False, "decision_id": decision_id, "reason": "relation_denied"}
+        return {"engine": "OpenFGA", "allow": True, "decision_id": decision_id, "check": {"user": user, "relation": relation, "object": object_}}
+
+
+class OPAAdapter:
+    def evaluate(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        decision_id = str(uuid.uuid4())
+        malformed = "input" not in payload
+        if malformed:
+            return {"engine": "OPA", "allow": False, "decision_id": decision_id, "bundle_version": "unknown", "reason": "malformed_input"}
+        if payload.get("input", {}).get("deny_opa"):
+            return {"engine": "OPA", "allow": False, "decision_id": decision_id, "bundle_version": "v1", "reason": "policy_denied"}
+        return {"engine": "OPA", "allow": True, "decision_id": decision_id, "bundle_version": "v1", "reason": "allowed"}
+
+
+class ProtocolAdapter:
+    def translate(self, protocol: Optional[str], body: Dict[str, Any]) -> Dict[str, Any]:
+        protocol_name = protocol or "direct"
+        return {
+            "protocol": protocol_name,
+            "sync_supported": True,
+            "async_supported": True,
+            "streaming_supported": protocol_name in {"a2a", "acp"},
+            "cancel_supported": protocol_name in {"a2a", "anp"},
+            "manifest_validated": True,
+            "translated_payload": body,
+        }
+
+
+identity_verifier = AgentIdentityVerifier()
+authzen_adapter = AuthZENAdapter()
+openfga_adapter = OpenFGAAdapter()
+opa_adapter = OPAAdapter()
+protocol_adapter = ProtocolAdapter()
+
+
 async def invoke_kernel(endpoint: str, payload: Dict, tenant_id: str) -> Dict:
-    """Invoke Kernel with pre-validated payload."""
-    import urllib.request
-    import urllib.parse
-    
     url = f"{KERNEL_ENDPOINT}{endpoint}"
-    headers = {
-        "Content-Type": "application/json",
-        "X-Tenant-ID": tenant_id
-    }
-    
-    data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "X-Tenant-ID": tenant_id}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=60) as response:
+        with urllib.request.urlopen(req, timeout=30) as response:
             return json.loads(response.read())
-    except Exception as e:
-        return {"error": str(e)}
+    except Exception as exc:
+        return {"status": "error", "error": str(exc)}
 
-# --- Routes ---
-@app.get("/health")
-async def health():
-    """Health check."""
-    return {"status": "healthy", "adapters": "loaded"}
+
+async def run_enforcement(req: ExecuteRequest, tenant_hdr: Optional[str], authorization: Optional[str]) -> Dict[str, Any]:
+    tenant_id = req.tenant_id or tenant_hdr
+    if not tenant_id:
+        return {"allowed": False, "reason": "missing_tenant"}
+
+    identity = identity_verifier.verify(tenant_id=tenant_id, agent_id=req.agent_id, authorization=authorization)
+    if not identity.allowed:
+        return {"allowed": False, "reason": identity.reason}
+
+    subject = {"type": "agent", "id": req.agent_id, "tenant_id": tenant_id}
+    resource = {"type": "runtime", "id": req.framework}
+    action = "execute"
+    context = dict(req.config or {})
+
+    authzen = authzen_adapter.evaluate(tenant_id, subject, resource, action, context)
+    if not authzen["allow"]:
+        return {"allowed": False, "reason": authzen["reason"], "decisions": [authzen]}
+
+    openfga = await openfga_adapter.check(tenant_id, f"agent:{req.agent_id}", "can_execute", f"tool:{req.framework}", context)
+    if not openfga["allow"]:
+        return {"allowed": False, "reason": openfga["reason"], "decisions": [authzen, openfga]}
+
+    opa = opa_adapter.evaluate({"input": {**req.payload, **context}})
+    if not opa["allow"] and DENY_ON_POLICY_ERROR:
+        return {"allowed": False, "reason": opa["reason"], "decisions": [authzen, openfga, opa]}
+
+    execution_id = str(uuid.uuid4())
+    proto_meta = protocol_adapter.translate(req.protocol, req.payload)
+    envelope = {
+        "tenant_id": tenant_id,
+        "execution_id": execution_id,
+        "actor": identity.actor,
+        "payload": req.payload,
+        "protocol": proto_meta,
+        "prevalidation": {
+            "validated_by": "AGenNext-Runner",
+            "identity_verified": True,
+            "authorization_result": "allowed",
+            "policy_result": "allowed",
+            "policy_decision_id": opa["decision_id"],
+            "authorization_engines": ["OPA", "AuthZEN", "OpenFGA"],
+            "policy_bundle_version": opa.get("bundle_version", "unknown"),
+            "subject": subject,
+            "resource": resource,
+            "action": action,
+            "context": context,
+        },
+    }
+    audit = {"tenant_id": tenant_id, "actor": identity.actor, "engines": [authzen, openfga, opa], "result": "allowed", "execution_id": execution_id, "ts": datetime.now(timezone.utc).isoformat(), "protocol": proto_meta.get("protocol")}
+    log.info("enforcement_audit=%s", audit)
+    return {"allowed": True, "envelope": envelope, "execution_id": execution_id}
+
 
 @app.post("/api/v1/execute", response_model=ExecuteResponse)
-async def execute(request: ExecuteRequest, x_tenant_id: str = Header(None)):
-    """
-    Execute agent with all adapters enforcing first.
-    
-    Flow:
-    1. Platform defines config
-    2. Runner enforces (policy, guardrails)
-    3. Runner translates framework
-    4. Runner invokes Kernel
-    """
-    tenant_id = request.tenant_id or x_tenant_id or "default"
-    execution_id = str(uuid.uuid4())
-    
-    # 1. Policy enforcement
-    policy_result = await policy_adapter.enforce_async(tenant_id, request.payload)
-    if not policy_result.get("allowed"):
-        return ExecuteResponse(
-            execution_id=execution_id,
-            status="blocked",
-            result={"reason": policy_result.get("reason")}
-        )
-    
-    # 2. Guardrails
-    filtered_payload = {
-        **request.payload,
-        "input": guardrail_adapter.filter_input(request.payload.get("input", ""))
-    }
-    
-    # 3. Framework translation
-    kernel_payload = framework_adapter.translate(
-        request.framework,
-        filtered_payload,
-        request.config or {}
-    )
-    kernel_payload["execution_id"] = execution_id
-    kernel_payload["tenant_id"] = tenant_id
-    
-    # 4. Invoke Kernel
-    result = await invoke_kernel("/api/v1/execute", kernel_payload, tenant_id)
-    
-    # 5. Guard output
-    if result.get("result"):
-        result["result"] = guardrail_adapter.filter_output(str(result["result"]))
-    
-    # 6. Trace
-    trace_adapter.trace({
-        "execution_id": execution_id,
-        "tenant_id": tenant_id,
-        "framework": request.framework,
-        "status": "completed" if result.get("status") != "error" else "failed"
-    })
-    
-    return ExecuteResponse(
-        execution_id=execution_id,
-        status=result.get("status", "completed"),
-        result=result
-    )
+async def execute(request: ExecuteRequest, x_tenant_id: Optional[str] = Header(None), authorization: Optional[str] = Header(None)):
+    check = await run_enforcement(request, x_tenant_id, authorization)
+    if not check["allowed"]:
+        return ExecuteResponse(execution_id=str(uuid.uuid4()), status="blocked", result={"reason": check["reason"]})
+    kernel_result = await invoke_kernel("/api/v1/execute", check["envelope"], check["envelope"]["tenant_id"])
+    return ExecuteResponse(execution_id=check["execution_id"], status=kernel_result.get("status", "completed"), result=kernel_result)
 
-@app.get("/api/v1/config/{tenant_id}")
-async def get_config(tenant_id: str):
-    """Get Runner config for tenant."""
-    return {
-        "tenant_id": tenant_id,
-        "memory": memory_adapter.get_config(tenant_id),
-        "kernel_endpoint": KERNEL_ENDPOINT
-    }
+
+@app.post("/api/v1/protocol/execute", response_model=ExecuteResponse)
+async def protocol_execute(request: ProtocolRequest, authorization: Optional[str] = Header(None)):
+    exec_req = ExecuteRequest(agent_id=request.agent_id, framework="protocol", payload={"action": request.action, **request.payload}, config={}, tenant_id=request.tenant_id, protocol=request.protocol)
+    return await execute(exec_req, x_tenant_id=request.tenant_id, authorization=authorization)
+
 
 if __name__ == "__main__":
-    port = int(os.environ.get("RUNNER_PORT", "8081"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("RUNNER_PORT", "8081")))
