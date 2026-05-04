@@ -282,3 +282,17 @@ backup/autonomyx-deep-agent-before-removal
 ```
 
 Use that branch if the old experimental module needs to be restored or migrated into a separate framework repo.
+
+
+## Runner Enforcement Boundary (AgentNext)
+
+Runner is the mandatory runtime enforcement boundary. Before any Kernel call, Runner now performs a deny-by-default pre-execution pipeline: tenant resolution, agent identity verification, AuthZEN/OpenFGA/OPA evaluation, protocol adapter normalization (A2A, Agent Communication Protocol, Agent Client Protocol, Agent Network Protocol), and guardrail-ready prevalidation envelope assembly. Kernel only executes prevalidated envelopes and does not perform primary policy enforcement.
+
+The Kernel handoff envelope includes `tenant_id`, `execution_id`, canonical `actor`, original `payload`, `protocol` metadata, and `prevalidation` metadata (`validated_by`, identity flag, policy/authorization decisions, decision ids, subject/resource/action/context, and policy bundle version).
+
+
+### Production/Security/Deployment Hardening Notes
+- Runner enforcement is deny-by-default for missing tenant, malformed identity token, expired identity, signature mismatch, malformed policy input, and failed authorization checks.
+- Runtime auth supports signed bearer tokens (`tenant:agent:exp:sig`) with HMAC verification via `IDENTITY_SHARED_SECRET`; cross-tenant and expired identities are rejected before Kernel invocation.
+- AuthZEN/OpenFGA/OPA adapters support remote endpoints (`AUTHZEN_ENDPOINT`, `OPENFGA_ENDPOINT`, `OPA_ENDPOINT`) with fail-closed behavior by default.
+- Kernel handoff includes execution and prevalidation metadata, and kernel calls carry `X-Tenant-ID` and `X-Execution-ID` headers for traceability across distributed deployments.
