@@ -290,6 +290,7 @@ Runner is the mandatory runtime enforcement boundary. Before any Kernel call, Ru
 
 The Kernel handoff envelope includes `tenant_id`, `execution_id`, canonical `actor`, original `payload`, `protocol` metadata, and `prevalidation` metadata (`validated_by`, identity flag, policy/authorization decisions, decision ids, subject/resource/action/context, and policy bundle version).
 
+
 ### Production/Security/Deployment Hardening Notes
 - Runner enforcement is deny-by-default for missing tenant, malformed identity token, expired identity, signature mismatch, malformed policy input, and failed authorization checks.
 - Runtime auth supports signed bearer tokens (`tenant:agent:exp:sig`) with HMAC verification via `IDENTITY_SHARED_SECRET`; cross-tenant and expired identities are rejected before Kernel invocation.
@@ -303,16 +304,3 @@ The Kernel handoff envelope includes `tenant_id`, `execution_id`, canonical `act
 - `GET /api/v1/frameworks` exposes supported adapters: LangChain, LangGraph, CrewAI, AutoGen, Semantic Kernel, LlamaIndex, Custom.
 - Runner loads tenant/agent/framework/policy/guardrail/tool/memory/rate-limit/approval config through `PlatformClient` and enforces before kernel invocation.
 - Kernel receives only normalized signed envelopes and remains framework-agnostic execution substrate.
-
-
-## AgentNext DX CLI
-
-```bash
-agentnext init support-agent --template langgraph-deepagent
-cd support-agent
-agentnext dev
-agentnext invoke "Search docs and create a ticket"
-agentnext package
-```
-
-See `docs/langgraph-deepagents-quickstart.md` for full quickstart.
